@@ -23,7 +23,12 @@ contract Distributors {
         string newDescription
     );
     event OptionsUpdated(address indexed distributor, string postId);
-    event VotesUpdated(address indexed distributor, string postId);
+    event VotesUpdated(
+        address indexed distributor,
+        string postId,
+        string optionId,
+        uint256 voteCount
+    );
     event ImageUrlUpdated(
         address indexed distributor,
         string postId,
@@ -36,6 +41,7 @@ contract Distributors {
     ////////////
     struct Option {
         string id;
+        uint256 vote;
         string imageUrl;
         string affiliated_post; // Post id
     }
@@ -43,7 +49,6 @@ contract Distributors {
     struct Post {
         string id;
         Option[3] options;
-        uint64[3] votes;
         string description;
         string affiliated_distributor; // Distributor id
     }
@@ -157,10 +162,14 @@ contract Distributors {
         Post storage req_post = getPostById(distributor_address, post_id);
 
         for (uint256 i = 0; i < votes.length; i++) {
-            req_post.votes[i] = votes[i];
+            req_post.options[i].vote = votes[i];
+            emit VotesUpdated(
+                distributor_address,
+                post_id,
+                req_post.options[i].id,
+                votes[i]
+            );
         }
-
-        emit VotesUpdated(distributor_address, post_id);
     }
 
     // ===================================================================================================================================================
@@ -226,12 +235,14 @@ contract Distributors {
         return req_post.options;
     }
 
-    function getAllVotes(
+    function getTotalVotesOnPost(
         address distributor,
         string memory post_id
-    ) public view returns (uint64[3] memory) {
+    ) public view returns (uint256 totalVotes) {
         Post memory req_post = getPostById(distributor, post_id);
-        return req_post.votes;
+        for (uint256 i = 0; i < 3; i++) {
+            totalVotes += req_post.options[i].vote;
+        }
     }
 
     // ===================================================================================================================================================
@@ -241,16 +252,20 @@ contract Distributors {
         string memory post_id,
         string memory option_id
     ) public view returns (Option memory) {
-        Option[3] memory allOptions = getAllOptions(distributor, post_id);
-        for (uint256 i = 0; i < 3; i++) {
-            if (
-                keccak256(abi.encodePacked(option_id)) ==
-                keccak256(abi.encodePacked(allOptions[i].id))
-            ) {
-                return allOptions[i];
-            }
-        }
-        revert Distributors__OptionDoesNotExist();
+        return getOptionById(distributor, post_id, option_id);
+    }
+
+    function getVoteOnOption(
+        address distributor,
+        string memory post_id,
+        string memory option_id
+    ) public view returns (uint256) {
+        Option memory option = getParticularOption(
+            distributor,
+            post_id,
+            option_id
+        );
+        return option.vote;
     }
 
     ////////////////////
