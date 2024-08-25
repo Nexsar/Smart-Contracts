@@ -5,8 +5,10 @@ contract Distributors {
     ////////////
     // ERRORS //
     ////////////
+    error Distributors__BadPayload();
     error Distributors__DoesNotExist();
     error Distributors__NotAuthorized();
+    error Distributors__PostDoesNotExist();
 
     ////////////
     // STRUCT //
@@ -55,6 +57,8 @@ contract Distributors {
     ) public Authorized(msg.sender, distributor_address) {
         Distributor memory distributor = s_Distributors[distributor_address];
         distributor.budget = budget;
+
+        // Emit an event
     }
 
     function updateFrequency(
@@ -63,6 +67,8 @@ contract Distributors {
     ) public Authorized(msg.sender, distributor_address) {
         Distributor memory distributor = s_Distributors[distributor_address];
         distributor.frequency = frequency;
+
+        // Emit an event
     }
 
     function updatePost(
@@ -80,6 +86,101 @@ contract Distributors {
         for (uint i = 0; i < incomingPosts; i++) {
             distributor.posts[i] = posts[i];
         }
+
+        // Emit an event
+    }
+
+    // ===================================================================================================================================================
+    function updateDescription(
+        string memory desc,
+        address distributor_address,
+        string memory post_id
+    ) public Authorized(msg.sender, distributor_address) {
+        Distributor memory distributor = s_Distributors[distributor_address];
+        Post[] memory allPosts = distributor.posts;
+        Post memory req_post;
+
+        for (uint i = 0; i < allPosts.length; i++) {
+            if (
+                keccak256(abi.encodePacked(post_id)) ==
+                keccak256(abi.encodePacked(allPosts[i].id))
+            ) {
+                req_post = allPosts[i];
+            }
+        }
+
+        if (isEmpty(req_post.description)) {
+            revert Distributors__PostDoesNotExist();
+        }
+
+        req_post.description = desc;
+        // Emit an event
+    }
+
+    function updateOptions(
+        Options[] memory options,
+        address distributor_address,
+        string memory post_id
+    ) public Authorized(msg.sender, distributor_address) {
+        Distributor memory distributor = s_Distributors[distributor_address];
+        Post[] memory allPosts = distributor.posts;
+        Post memory req_post;
+
+        if (options.length == 0) {
+            revert Distributors__BadPayload();
+        }
+
+        for (uint i = 0; i < allPosts.length; i++) {
+            if (
+                keccak256(abi.encodePacked(post_id)) ==
+                keccak256(abi.encodePacked(allPosts[i].id))
+            ) {
+                req_post = allPosts[i];
+            }
+        }
+
+        if (isEmpty(req_post.description)) {
+            revert Distributors__PostDoesNotExist();
+        }
+
+        for (uint i = 0; i < options.length; i++) {
+            req_post.options[i] = options[i];
+        }
+
+        // Emit Event
+    }
+
+    function updateVotes(
+        uint64[] memory votes,
+        address distributor_address,
+        string memory post_id
+    ) public Authorized(msg.sender, distributor_address) {
+        Distributor memory distributor = s_Distributors[distributor_address];
+        Post[] memory allPosts = distributor.posts;
+        Post memory req_post;
+
+        if (votes.length != 3) {
+            revert Distributors__BadPayload();
+        }
+
+        for (uint i = 0; i < allPosts.length; i++) {
+            if (
+                keccak256(abi.encodePacked(post_id)) ==
+                keccak256(abi.encodePacked(allPosts[i].id))
+            ) {
+                req_post = allPosts[i];
+            }
+        }
+
+        if (isEmpty(req_post.description)) {
+            revert Distributors__PostDoesNotExist();
+        }
+
+        for (uint i = 0; i < votes.length; i++) {
+            req_post.votes[i] = votes[i];
+        }
+
+        // Emit Event
     }
 
     // ===================================================================================================================================================
@@ -94,5 +195,12 @@ contract Distributors {
 
     function getFrequency(address distributor) public view returns (uint256) {
         return s_Distributors[distributor].frequency;
+    }
+
+    /////////////
+    // METHODS - Pure //
+    /////////////
+    function isEmpty(string memory str) internal pure returns (bool) {
+        return bytes(str).length == 0;
     }
 }
