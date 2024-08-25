@@ -102,17 +102,25 @@ contract Distributors {
     }
 
     function updatePost(
-        Post[] memory posts,
+        Post memory post,
         address distributor_address
     ) public Authorized(msg.sender, distributor_address) {
         Distributor storage distributor = s_Distributors[distributor_address];
-        uint256 postLimit = posts.length > 3 ? 3 : posts.length;
+        Post storage newPost = distributor.posts.push();
+        newPost.id = post.id;
+        newPost.description = post.description;
+        newPost.affiliated_distributor = post.affiliated_distributor;
 
-        for (uint i = 0; i < postLimit; i++) {
-            distributor.posts[i] = posts[i];
+        for (uint i = 0; i < 3; i++) {
+            newPost.options[i].id = post.options[i].id;
+            newPost.options[i].vote = post.options[i].vote;
+            newPost.options[i].imageUrl = post.options[i].imageUrl;
+            newPost.options[i].affiliated_post = post
+                .options[i]
+                .affiliated_post;
         }
 
-        emit PostUpdated(distributor_address, posts[0].id);
+        emit PostUpdated(distributor_address, post.id);
     }
 
     // ===================================================================================================================================================
@@ -133,11 +141,11 @@ contract Distributors {
     }
 
     function updateOptions(
-        Option[] memory options,
+        Option[3] memory options,
         address distributor_address,
         string memory post_id
     ) public Authorized(msg.sender, distributor_address) {
-        if (options.length == 0) {
+        if (options.length == 0 || options.length > 3) {
             revert Distributors__BadPayload();
         }
 
