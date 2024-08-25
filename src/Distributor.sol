@@ -5,15 +5,18 @@ contract Distributors {
     ////////////
     // ERRORS //
     ////////////
+    error Distributors__Exist();
     error Distributors__BadPayload();
     error Distributors__DoesNotExist();
     error Distributors__NotAuthorized();
+    error Distributors__NotEnoughBudget();
     error Distributors__PostDoesNotExist();
     error Distributors__OptionDoesNotExist();
 
     ////////////
     // EVENTS //
     ////////////
+    event DistributorListed(address indexed distributor);
     event BudgetUpdated(address indexed distributor, uint256 newBudget);
     event FrequencyUpdated(address indexed distributor, uint256 newFrequency);
     event PostUpdated(address indexed distributor, string postId);
@@ -66,9 +69,6 @@ contract Distributors {
     //////////////
     modifier Authorized(address sender, address distributor_address) {
         Distributor memory distributor = s_Distributors[distributor_address];
-        if (distributor.listed == false) {
-            revert Distributors__DoesNotExist();
-        }
         if (msg.sender != distributor.id) {
             revert Distributors__NotAuthorized();
         }
@@ -77,7 +77,7 @@ contract Distributors {
 
     modifier Listed(address distributor) {
         if (s_Distributors[distributor].listed) {
-            revert Distributors__DoesNotExist();
+            revert Distributors__Exist();
         }
         _;
     }
@@ -85,8 +85,15 @@ contract Distributors {
     /////////////////////
     // DATA STRUCTURES //
     /////////////////////
+    mapping(bytes32 keccakedPostId => Post) public s_Posts;
+    mapping(bytes32 keccakedOptionId => Option) public s_Options;
     mapping(address distributor => Distributor) public s_Distributors;
     mapping(address distributor => uint256) public s_DistributorBudget;
+
+    /////////////////
+    // CONSTRUCTOR //
+    /////////////////
+    constructor() {}
 
     ////////////////////////
     // METHODS - Updaters //
@@ -128,6 +135,7 @@ contract Distributors {
             }
         }
 
+        emit DistributorListed(msg.sender);
         emit BudgetUpdated(msg.sender, initialBudget);
         emit FrequencyUpdated(msg.sender, initialFrequency);
     }
@@ -152,10 +160,31 @@ contract Distributors {
         emit BudgetUpdated(distributor_address, budget);
     }
 
+    function withdrawFromBudget(
+        uint256 amount,
+        address distributor_address
+    ) public Authorized(msg.sender, distributor_address) {
+        Distributor storage distributor = s_Distributors[distributor_address];
+
+        if (amount > distributor.budget) {
+            revert Distributors__NotEnoughBudget();
+        }
+
+        distributor.budget -= amount;
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Withdrawal failed");
+
+        emit BudgetUpdated(distributor_address, distributor.budget);
+    }
+
     function updateFrequency(
         uint256 frequency,
         address distributor_address
-    ) public Authorized(msg.sender, distributor_address) {
+    )
+        public
+        Listed(distributor_address)
+        Authorized(msg.sender, distributor_address)
+    {
         Distributor storage distributor = s_Distributors[distributor_address];
         distributor.frequency = frequency;
 
@@ -165,7 +194,11 @@ contract Distributors {
     function updatePost(
         Post memory post,
         address distributor_address
-    ) public Authorized(msg.sender, distributor_address) {
+    )
+        public
+        Listed(distributor_address)
+        Authorized(msg.sender, distributor_address)
+    {
         Distributor storage distributor = s_Distributors[distributor_address];
         Post storage newPost = distributor.posts.push();
         newPost.id = post.id;
@@ -190,7 +223,11 @@ contract Distributors {
         string memory desc,
         address distributor_address,
         string memory post_id
-    ) public Authorized(msg.sender, distributor_address) {
+    )
+        public
+        Listed(distributor_address)
+        Authorized(msg.sender, distributor_address)
+    {
         Post storage req_post = getPostById(distributor_address, post_id);
 
         if (isEmpty(req_post.description)) {
@@ -205,7 +242,11 @@ contract Distributors {
         Option[3] memory options,
         address distributor_address,
         string memory post_id
-    ) public Authorized(msg.sender, distributor_address) {
+    )
+        public
+        Listed(distributor_address)
+        Authorized(msg.sender, distributor_address)
+    {
         if (options.length == 0 || options.length > 3) {
             revert Distributors__BadPayload();
         }
@@ -223,7 +264,11 @@ contract Distributors {
         uint64[] memory votes,
         address distributor_address,
         string memory post_id
-    ) public Authorized(msg.sender, distributor_address) {
+    )
+        public
+        Listed(distributor_address)
+        Authorized(msg.sender, distributor_address)
+    {
         if (votes.length != 3) {
             revert Distributors__BadPayload();
         }
@@ -248,7 +293,11 @@ contract Distributors {
         address distributor_address,
         string memory post_id,
         string memory option_id
-    ) public Authorized(msg.sender, distributor_address) {
+    )
+        public
+        Listed(distributor_address)
+        Authorized(msg.sender, distributor_address)
+    {
         Option storage option = getOptionById(
             distributor_address,
             post_id,
