@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
 contract Distributors {
@@ -10,6 +10,26 @@ contract Distributors {
     error Distributors__NotAuthorized();
     error Distributors__PostDoesNotExist();
     error Distributors__OptionDoesNotExist();
+
+    ////////////
+    // EVENTS //
+    ////////////
+    event BudgetUpdated(address indexed distributor, uint256 newBudget);
+    event FrequencyUpdated(address indexed distributor, uint256 newFrequency);
+    event PostUpdated(address indexed distributor, string postId);
+    event DescriptionUpdated(
+        address indexed distributor,
+        string postId,
+        string newDescription
+    );
+    event OptionsUpdated(address indexed distributor, string postId);
+    event VotesUpdated(address indexed distributor, string postId);
+    event ImageUrlUpdated(
+        address indexed distributor,
+        string postId,
+        string optionId,
+        string newImageUrl
+    );
 
     ////////////
     // STRUCT //
@@ -52,73 +72,59 @@ contract Distributors {
     /////////////////////
     mapping(address distributor => Distributor) public s_Distributors;
 
-    /////////////
-    // METHODS - Setter //
-    /////////////
+    ////////////////////////
+    // METHODS - Updaters //
+    ////////////////////////
+
     function updateBudget(
         uint256 budget,
         address distributor_address
     ) public Authorized(msg.sender, distributor_address) {
-        Distributor memory distributor = s_Distributors[distributor_address];
+        Distributor storage distributor = s_Distributors[distributor_address];
         distributor.budget = budget;
 
-        // Emit an event
+        emit BudgetUpdated(distributor_address, budget);
     }
 
     function updateFrequency(
         uint256 frequency,
         address distributor_address
     ) public Authorized(msg.sender, distributor_address) {
-        Distributor memory distributor = s_Distributors[distributor_address];
+        Distributor storage distributor = s_Distributors[distributor_address];
         distributor.frequency = frequency;
 
-        // Emit an event
+        emit FrequencyUpdated(distributor_address, frequency);
     }
 
     function updatePost(
         Post[] memory posts,
         address distributor_address
     ) public Authorized(msg.sender, distributor_address) {
-        Distributor memory distributor = s_Distributors[distributor_address];
-        uint8 incomingPosts;
-        if (uint8(posts.length) > 3) {
-            incomingPosts = 3;
-        } else {
-            incomingPosts = uint8(posts.length);
-        }
+        Distributor storage distributor = s_Distributors[distributor_address];
+        uint256 postLimit = posts.length > 3 ? 3 : posts.length;
 
-        for (uint i = 0; i < incomingPosts; i++) {
+        for (uint i = 0; i < postLimit; i++) {
             distributor.posts[i] = posts[i];
         }
 
-        // Emit an event
+        emit PostUpdated(distributor_address, posts[0].id);
     }
 
     // ===================================================================================================================================================
+
     function updateDescription(
         string memory desc,
         address distributor_address,
         string memory post_id
     ) public Authorized(msg.sender, distributor_address) {
-        Distributor memory distributor = s_Distributors[distributor_address];
-        Post[] memory allPosts = distributor.posts;
-        Post memory req_post;
-
-        for (uint i = 0; i < allPosts.length; i++) {
-            if (
-                keccak256(abi.encodePacked(post_id)) ==
-                keccak256(abi.encodePacked(allPosts[i].id))
-            ) {
-                req_post = allPosts[i];
-            }
-        }
+        Post storage req_post = getPostById(distributor_address, post_id);
 
         if (isEmpty(req_post.description)) {
             revert Distributors__PostDoesNotExist();
         }
 
         req_post.description = desc;
-        // Emit an event
+        emit DescriptionUpdated(distributor_address, post_id, desc); // Added event
     }
 
     function updateOptions(
@@ -126,32 +132,17 @@ contract Distributors {
         address distributor_address,
         string memory post_id
     ) public Authorized(msg.sender, distributor_address) {
-        Distributor memory distributor = s_Distributors[distributor_address];
-        Post[] memory allPosts = distributor.posts;
-        Post memory req_post;
-
         if (options.length == 0) {
             revert Distributors__BadPayload();
         }
 
-        for (uint i = 0; i < allPosts.length; i++) {
-            if (
-                keccak256(abi.encodePacked(post_id)) ==
-                keccak256(abi.encodePacked(allPosts[i].id))
-            ) {
-                req_post = allPosts[i];
-            }
-        }
+        Post storage req_post = getPostById(distributor_address, post_id);
 
-        if (isEmpty(req_post.description)) {
-            revert Distributors__PostDoesNotExist();
-        }
-
-        for (uint i = 0; i < options.length; i++) {
+        for (uint256 i = 0; i < options.length; i++) {
             req_post.options[i] = options[i];
         }
 
-        // ToDo: Emit Event
+        emit OptionsUpdated(distributor_address, post_id);
     }
 
     function updateVotes(
@@ -159,32 +150,17 @@ contract Distributors {
         address distributor_address,
         string memory post_id
     ) public Authorized(msg.sender, distributor_address) {
-        Distributor memory distributor = s_Distributors[distributor_address];
-        Post[] memory allPosts = distributor.posts;
-        Post memory req_post;
-
         if (votes.length != 3) {
             revert Distributors__BadPayload();
         }
 
-        for (uint i = 0; i < allPosts.length; i++) {
-            if (
-                keccak256(abi.encodePacked(post_id)) ==
-                keccak256(abi.encodePacked(allPosts[i].id))
-            ) {
-                req_post = allPosts[i];
-            }
-        }
+        Post storage req_post = getPostById(distributor_address, post_id);
 
-        if (isEmpty(req_post.description)) {
-            revert Distributors__PostDoesNotExist();
-        }
-
-        for (uint i = 0; i < votes.length; i++) {
+        for (uint256 i = 0; i < votes.length; i++) {
             req_post.votes[i] = votes[i];
         }
 
-        // ToDo: Emit Event
+        emit VotesUpdated(distributor_address, post_id);
     }
 
     // ===================================================================================================================================================
@@ -195,25 +171,18 @@ contract Distributors {
         string memory post_id,
         string memory option_id
     ) public Authorized(msg.sender, distributor_address) {
-        Post memory post = getParticularPost(distributor_address, post_id);
-        Option memory option;
-
-        for (uint i = 0; i < 3; i++) {
-            if (
-                keccak256(abi.encodePacked(option_id)) ==
-                keccak256(abi.encodePacked(post.options[i].id))
-            ) {
-                option = post.options[i];
-            }
-        }
+        Option storage option = getOptionById(
+            distributor_address,
+            post_id,
+            option_id
+        );
 
         if (isEmpty(option.id)) {
             revert Distributors__OptionDoesNotExist();
         }
 
         option.imageUrl = url;
-
-        // ToDo: Emit Event
+        emit ImageUrlUpdated(distributor_address, post_id, option_id, url);
     }
 
     //////////////////////
@@ -246,27 +215,14 @@ contract Distributors {
         address distributor,
         string memory post_id
     ) public view returns (Post memory) {
-        Post[] memory posts = getAllPosts(distributor);
-        Post memory req_post;
-
-        for (uint i = 0; i < posts.length; i++) {
-            if (
-                keccak256(abi.encodePacked(post_id)) ==
-                keccak256(abi.encodePacked(posts[i].id))
-            ) {
-                req_post = posts[i];
-            }
-        }
-
-        return req_post;
+        return getPostById(distributor, post_id);
     }
 
     function getAllOptions(
         address distributor,
         string memory post_id
     ) public view returns (Option[3] memory) {
-        Post memory req_post = getParticularPost(distributor, post_id);
-
+        Post memory req_post = getPostById(distributor, post_id);
         return req_post.options;
     }
 
@@ -274,7 +230,7 @@ contract Distributors {
         address distributor,
         string memory post_id
     ) public view returns (uint64[3] memory) {
-        Post memory req_post = getParticularPost(distributor, post_id);
+        Post memory req_post = getPostById(distributor, post_id);
         return req_post.votes;
     }
 
@@ -286,24 +242,59 @@ contract Distributors {
         string memory option_id
     ) public view returns (Option memory) {
         Option[3] memory allOptions = getAllOptions(distributor, post_id);
-        Option memory option;
-
-        for (uint i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < 3; i++) {
             if (
                 keccak256(abi.encodePacked(option_id)) ==
                 keccak256(abi.encodePacked(allOptions[i].id))
             ) {
-                option = allOptions[i];
+                return allOptions[i];
             }
         }
-
-        return option;
+        revert Distributors__OptionDoesNotExist();
     }
 
-    /////////////
+    ////////////////////
     // METHODS - Pure //
-    /////////////
+    ////////////////////
     function isEmpty(string memory str) internal pure returns (bool) {
         return bytes(str).length == 0;
+    }
+
+    ///////////////////////////////
+    // METHODS - Internal Helper //
+    ///////////////////////////////
+    function getPostById(
+        address distributor,
+        string memory post_id
+    ) internal view returns (Post storage) {
+        Post[] storage posts = s_Distributors[distributor].posts;
+
+        for (uint256 i = 0; i < posts.length; i++) {
+            if (
+                keccak256(abi.encodePacked(post_id)) ==
+                keccak256(abi.encodePacked(posts[i].id))
+            ) {
+                return posts[i];
+            }
+        }
+        revert Distributors__PostDoesNotExist();
+    }
+
+    function getOptionById(
+        address distributor,
+        string memory post_id,
+        string memory option_id
+    ) internal view returns (Option storage) {
+        Post storage post = getPostById(distributor, post_id);
+
+        for (uint256 i = 0; i < 3; i++) {
+            if (
+                keccak256(abi.encodePacked(option_id)) ==
+                keccak256(abi.encodePacked(post.options[i].id))
+            ) {
+                return post.options[i];
+            }
+        }
+        revert Distributors__PostDoesNotExist();
     }
 }
