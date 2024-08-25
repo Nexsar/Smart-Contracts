@@ -9,21 +9,23 @@ contract Distributors {
     error Distributors__DoesNotExist();
     error Distributors__NotAuthorized();
     error Distributors__PostDoesNotExist();
+    error Distributors__OptionDoesNotExist();
 
     ////////////
     // STRUCT //
     ////////////
-    struct Options {
-        string affiliated_post;
-        string[3] imageUrls;
+    struct Option {
+        string id;
+        string imageUrl;
+        string affiliated_post; // Post id
     }
 
     struct Post {
         string id;
-        string affiliated_distributor;
-        Options[3] options;
+        Option[3] options;
         uint64[3] votes;
         string description;
+        string affiliated_distributor; // Distributor id
     }
 
     struct Distributor {
@@ -120,7 +122,7 @@ contract Distributors {
     }
 
     function updateOptions(
-        Options[] memory options,
+        Option[] memory options,
         address distributor_address,
         string memory post_id
     ) public Authorized(msg.sender, distributor_address) {
@@ -149,7 +151,7 @@ contract Distributors {
             req_post.options[i] = options[i];
         }
 
-        // Emit Event
+        // ToDo: Emit Event
     }
 
     function updateVotes(
@@ -182,14 +184,41 @@ contract Distributors {
             req_post.votes[i] = votes[i];
         }
 
-        // Emit Event
+        // ToDo: Emit Event
     }
 
     // ===================================================================================================================================================
 
-    /////////////
+    function updateImageUrl(
+        string memory url,
+        address distributor_address,
+        string memory post_id,
+        string memory option_id
+    ) public Authorized(msg.sender, distributor_address) {
+        Post memory post = getParticularPost(distributor_address, post_id);
+        Option memory option;
+
+        for (uint i = 0; i < 3; i++) {
+            if (
+                keccak256(abi.encodePacked(option_id)) ==
+                keccak256(abi.encodePacked(post.options[i].id))
+            ) {
+                option = post.options[i];
+            }
+        }
+
+        if (isEmpty(option.id)) {
+            revert Distributors__OptionDoesNotExist();
+        }
+
+        option.imageUrl = url;
+
+        // ToDo: Emit Event
+    }
+
+    //////////////////////
     // METHODS - Getter //
-    /////////////
+    //////////////////////
 
     function getBudget(address distributor) public view returns (uint256) {
         return s_Distributors[distributor].budget;
@@ -235,7 +264,7 @@ contract Distributors {
     function getAllOptions(
         address distributor,
         string memory post_id
-    ) public view returns (Options[3] memory) {
+    ) public view returns (Option[3] memory) {
         Post memory req_post = getParticularPost(distributor, post_id);
 
         return req_post.options;
@@ -247,6 +276,28 @@ contract Distributors {
     ) public view returns (uint64[3] memory) {
         Post memory req_post = getParticularPost(distributor, post_id);
         return req_post.votes;
+    }
+
+    // ===================================================================================================================================================
+
+    function getParticularOption(
+        address distributor,
+        string memory post_id,
+        string memory option_id
+    ) public view returns (Option memory) {
+        Option[3] memory allOptions = getAllOptions(distributor, post_id);
+        Option memory option;
+
+        for (uint i = 0; i < 3; i++) {
+            if (
+                keccak256(abi.encodePacked(option_id)) ==
+                keccak256(abi.encodePacked(allOptions[i].id))
+            ) {
+                option = allOptions[i];
+            }
+        }
+
+        return option;
     }
 
     /////////////
