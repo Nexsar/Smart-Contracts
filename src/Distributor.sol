@@ -14,11 +14,13 @@ contract Distributors {
     // STRUCT //
     ////////////
     struct Options {
+        string affiliated_post;
         string[3] imageUrls;
     }
 
     struct Post {
         string id;
+        string affiliated_distributor;
         Options[3] options;
         uint64[3] votes;
         string description;
@@ -195,6 +197,56 @@ contract Distributors {
 
     function getFrequency(address distributor) public view returns (uint256) {
         return s_Distributors[distributor].frequency;
+    }
+
+    function getAllPosts(
+        address distributor
+    ) public view returns (Post[] memory) {
+        return s_Distributors[distributor].posts;
+    }
+
+    function ownerOfDistributor(
+        address distributor
+    ) public view returns (address) {
+        return s_Distributors[distributor].id;
+    }
+
+    // ===================================================================================================================================================
+
+    function getParticularPost(
+        address distributor,
+        string memory post_id
+    ) public view returns (Post memory) {
+        Post[] memory posts = getAllPosts(distributor);
+        Post memory req_post;
+
+        for (uint i = 0; i < posts.length; i++) {
+            if (
+                keccak256(abi.encodePacked(post_id)) ==
+                keccak256(abi.encodePacked(posts[i].id))
+            ) {
+                req_post = posts[i];
+            }
+        }
+
+        return req_post;
+    }
+
+    function getAllOptions(
+        address distributor,
+        string memory post_id
+    ) public view returns (Options[3] memory) {
+        Post memory req_post = getParticularPost(distributor, post_id);
+
+        return req_post.options;
+    }
+
+    function getAllVotes(
+        address distributor,
+        string memory post_id
+    ) public view returns (uint64[3] memory) {
+        Post memory req_post = getParticularPost(distributor, post_id);
+        return req_post.votes;
     }
 
     /////////////
