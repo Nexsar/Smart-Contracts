@@ -61,6 +61,9 @@ contract Distributors {
         uint256 frequency;
     }
 
+    //////////////
+    // MODIFIER //
+    //////////////
     modifier Authorized(address sender, address distributor_address) {
         Distributor memory distributor = s_Distributors[distributor_address];
         if (distributor.listed == false) {
@@ -72,21 +75,79 @@ contract Distributors {
         _;
     }
 
+    modifier Listed(address distributor) {
+        if (s_Distributors[distributor].listed) {
+            revert Distributors__DoesNotExist();
+        }
+        _;
+    }
+
     /////////////////////
     // DATA STRUCTURES //
     /////////////////////
     mapping(address distributor => Distributor) public s_Distributors;
+    mapping(address distributor => uint256) public s_DistributorBudget;
 
     ////////////////////////
     // METHODS - Updaters //
     ////////////////////////
 
+    function initDistributor(
+        bool listed,
+        uint256 initialBudget,
+        uint256 initialFrequency,
+        Post[] memory posts
+    ) public payable Listed(msg.sender) {
+        if (msg.value != initialBudget) {
+            revert Distributors__BadPayload(); // Ensuring that the sent value matches the budget
+        }
+
+        // Init new distributor
+        Distributor storage distributor = s_Distributors[msg.sender];
+        s_DistributorBudget[msg.sender] += initialBudget;
+        distributor.id = msg.sender;
+        distributor.listed = listed;
+        distributor.budget = initialBudget;
+        distributor.frequency = initialFrequency;
+
+        // Add all posts (usually there will be `1` init Post)
+        for (uint i = 0; i < posts.length; i++) {
+            Post storage newPost = distributor.posts.push();
+            newPost.id = posts[i].id;
+            newPost.description = posts[i].description;
+            newPost.affiliated_distributor = posts[i].affiliated_distributor;
+
+            // Init Options
+            for (uint j = 0; j < 3; j++) {
+                newPost.options[j].id = posts[i].options[j].id;
+                newPost.options[j].vote = posts[i].options[j].vote;
+                newPost.options[j].imageUrl = posts[i].options[j].imageUrl;
+                newPost.options[j].affiliated_post = posts[i]
+                    .options[j]
+                    .affiliated_post;
+            }
+        }
+
+        emit BudgetUpdated(msg.sender, initialBudget);
+        emit FrequencyUpdated(msg.sender, initialFrequency);
+    }
+
+    // Update Budget;
     function updateBudget(
         uint256 budget,
         address distributor_address
-    ) public Authorized(msg.sender, distributor_address) {
+    )
+        public
+        payable
+        Listed(distributor_address)
+        Authorized(msg.sender, distributor_address)
+    {
+        if (msg.value != budget) {
+            revert Distributors__BadPayload();
+        }
         Distributor storage distributor = s_Distributors[distributor_address];
-        distributor.budget = budget;
+        distributor.budget += budget;
+        s_DistributorBudget[msg.sender] += budget;
 
         emit BudgetUpdated(distributor_address, budget);
     }
