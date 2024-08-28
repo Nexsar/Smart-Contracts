@@ -2,10 +2,12 @@
 pragma solidity ^0.8.20;
 
 contract Distributors {
-    ////////////
-    // ERRORS //
-    ////////////
+    
+    // Errors
     error Distributors__Exist();
+    error Post_Exist();
+    error Post_Doesnot_Exist();
+    error UnAuthorised_Access();
     error Distributors__BadPayload();
     error Distributors__DoesNotExist();
     error Distributors__OptionExists();
@@ -14,35 +16,17 @@ contract Distributors {
     error Distributors__PostDoesNotExist();
     error Distributors__OptionDoesNotExist();
 
-    ////////////
-    // EVENTS //
-    ////////////
+    // Events
     event DistributorListed(address indexed distributor);
     event BudgetUpdated(address indexed distributor, uint256 newBudget);
     event FrequencyUpdated(address indexed distributor, uint256 newFrequency);
-    event PostUpdated(address indexed distributor, string postId);
-    event DescriptionUpdated(
-        address indexed distributor,
-        string postId,
-        string newDescription
-    );
+    event PostAdded(address indexed distributor, string postId);
+    event DescriptionUpdated(address indexed distributor, string postId, string newDescription);
     event OptionsUpdated(address indexed distributor, string postId);
-    event VotesUpdated(
-        address indexed distributor,
-        string postId,
-        string optionId,
-        uint256 voteCount
-    );
-    event ImageUrlUpdated(
-        address indexed distributor,
-        string postId,
-        string optionId,
-        string newImageUrl
-    );
+    event VotesUpdated(address indexed distributor, string postId, string optionId, uint256 voteCount);
+    event ImageUrlUpdated(address indexed distributor, string postId, string optionId, string newImageUrl);
 
-    ////////////
-    // STRUCT //
-    ////////////
+    // Structs
     struct Option {
         string id;
         uint256 vote;
@@ -65,9 +49,7 @@ contract Distributors {
         string[] postIds;
     }
 
-    //////////////
-    // MODIFIER //
-    //////////////
+    // Modifiers
     modifier Authorized(address distributorAddress) {
         if (msg.sender != distributorAddress) {
             revert Distributors__NotAuthorized();
@@ -82,28 +64,25 @@ contract Distributors {
         _;
     }
 
-    /////////////////////
-    // DATA STRUCTURES //
-    /////////////////////
+    //Mappings
     mapping(address => Distributor) private s_Distributors; // distributor add => distributor struct
     mapping(address => uint256) public s_DistributorBudget; // distributor add => distributor budget
 
-    mapping(bytes32 => Option) public s_Options; // option id => option struct
+    mapping(string => Post) private s_Posts; // post id => post struct
+    mapping(string => Option) private s_Options; // option id => option struct
+
+   
     mapping(string => bool) private optionExist; // to make a check of unique optionIds exist
-    mapping(string => mapping(string => Option)) public p_Options; // post id => option id => option struct
-
-    mapping(bytes32 => Post) public s_Posts; // post id => post struct
     mapping(string => bool) private postExist; // to make a check of unique postIds exist
-    mapping(address => mapping(string => Post)) public d_Posts; // distributor add => post id => post struct
+    mapping(address =>bool) private distributorExist;
 
-    /////////////////
-    // CONSTRUCTOR //
-    /////////////////
+    mapping(string => mapping(string => Option)) private p_Options; // post id => option id => option struct
+    mapping(address => mapping(string => Post)) private d_Posts; // distributor add => post id => post struct
+
+    //constructor
     constructor() {}
 
-    ////////////////////////
-    // METHODS - Updaters //
-    ////////////////////////
+    // init the distributor
 
     function initDistributor(
         bool listed,
@@ -123,6 +102,9 @@ contract Distributors {
         // if (msg.value != initialBudget) {
         //     revert Distributors__BadPayload();
         // }
+        if(distributorExist[msg.sender]){
+            revert Distributors__Exist();
+        }
 
         // Init new distributor
         Distributor storage distributor = s_Distributors[msg.sender];
@@ -138,6 +120,7 @@ contract Distributors {
         post.id = postId;
         post.description = description;
         post.affiliated_distributor = msg.sender;
+        
 
         for (uint j = 0; j < 3; j++) {
             Option storage option = p_Options[postId][optionIds[j]];
@@ -147,54 +130,13 @@ contract Distributors {
             option.imageUrl = imageUrls[j];
             option.affiliated_post = postId;
             optionExist[optionIds[j]] = true;
+            s_Options[optionIds[j]] = option;
         }
+        s_Posts[postId] = post;
         postExist[postId] = true;
-
         emit DistributorListed(msg.sender);
     }
 
-    // Update Budget;
-    function updateBudget(
-        uint256 budget,
-        address distributorAddress
-    ) public payable Listed(distributorAddress) Authorized(distributorAddress) {
-        // if (msg.value != budget) {
-        //     revert Distributors__BadPayload();
-        // }
-
-        Distributor storage distributor = s_Distributors[distributorAddress];
-        distributor.budget = budget;
-        s_DistributorBudget[msg.sender] = budget;
-
-        emit BudgetUpdated(distributorAddress, budget);
-    }
-
-    // function withdrawFromBudget(
-    //     uint256 amount,
-    //     address distributorAddress
-    // ) public Authorized(distributorAddress) Listed(distributorAddress) Authorized(distributorAddress) {
-    //     Distributor storage distributor = s_Distributors[distributorAddress];
-
-    //     if (amount > distributor.budget) {
-    //         revert Distributors__NotEnoughBudget();
-    //     }
-
-    //     distributor.budget -= amount;
-    //     (bool success, ) = msg.sender.call{value: amount}("");
-    //     require(success, "Withdrawal failed");
-
-    //     emit BudgetUpdated(distributorAddress, distributor.budget);
-    // }
-
-    function updateFrequency(
-        uint256 frequency,
-        address distributorAddress
-    ) public Listed(distributorAddress) Authorized(distributorAddress) {
-        Distributor storage distributor = s_Distributors[distributorAddress];
-        distributor.frequency = frequency;
-
-        emit FrequencyUpdated(distributorAddress, frequency);
-    }
 
     function AddPost(
         string memory postId,
@@ -203,6 +145,11 @@ contract Distributors {
         string[] memory imageUrls,
         address distributorAddress
     ) public Listed(msg.sender) Authorized(msg.sender) {
+
+        if(postExist[postId]){
+            revert Post_Exist();
+        }
+
         Distributor storage distributor = s_Distributors[distributorAddress];
         //init Post
         Post storage post = d_Posts[msg.sender][postId];
@@ -223,20 +170,69 @@ contract Distributors {
             option.imageUrl = imageUrls[j];
             option.affiliated_post = postId;
             optionExist[optionIds[j]] = true;
+            s_Options[optionIds[j]] = option;
+
         }
         postExist[postId] = true;
-
-        emit PostUpdated(distributorAddress, post.id);
+        s_Posts[postId] = post;
+        emit PostAdded(distributorAddress, post.id);
     }
 
-    // // ===================================================================================================================================================
+///////////////////////////////////////////////Updation/////////////////////////////////////////////////////////////
 
+    // Update Budget;
+    function updateBudget(
+        uint256 budget,
+        address distributorAddress
+    ) public payable Listed(distributorAddress) Authorized(distributorAddress) {
+        // if (msg.value != budget) {
+        //     revert Distributors__BadPayload();
+        // }
+
+        Distributor storage distributor = s_Distributors[distributorAddress];
+        if(distributorAddress != distributor.id){
+            revert UnAuthorised_Access();
+        }
+
+        if(distributor.id!=msg.sender){
+            revert UnAuthorised_Access();
+        }
+
+        distributor.budget = budget;
+        s_DistributorBudget[msg.sender] = budget;
+
+        emit BudgetUpdated(distributorAddress, budget);
+    }
+
+    // update frequency
+    function updateFrequency(
+        uint256 frequency,
+        address distributorAddress
+    ) public Listed(distributorAddress) Authorized(distributorAddress) {
+        Distributor storage distributor = s_Distributors[distributorAddress];
+
+        if(distributorAddress != distributor.id){
+            revert UnAuthorised_Access();
+        }
+        
+        if(distributor.id!=msg.sender){
+            revert UnAuthorised_Access();
+        }
+        distributor.frequency = frequency;
+
+        emit FrequencyUpdated(distributorAddress, frequency);
+    }
+
+    // update description of the post with specific post id
     function updateDescription(
         string memory desc,
         string memory post_id,
         address distributorAddress
     ) public Listed(distributorAddress) Authorized(distributorAddress) {
         Post storage req_post = d_Posts[distributorAddress][post_id];
+        if(msg.sender !=distributorAddress){
+            revert UnAuthorised_Access();
+        }
 
         if (!postExist[post_id]) {
             revert Distributors__PostDoesNotExist();
@@ -246,35 +242,8 @@ contract Distributors {
         emit DescriptionUpdated(distributorAddress, post_id, desc); // Added event
     }
 
-    // function updateOptions(
-    //     string[] memory optionIds,
-    //     string[]  memory imageUrls,
-    //     address distributorAddress,
-    //     string memory post_id
-    // )
-    //     public
-    //     Listed(distributorAddress)
-    //     Authorized(distributorAddress)
-    // {
-    //     // if (options.length == 0 || options.length > 3) {
-    //     //     revert Distributors__BadPayload();
-    //     // }
-    //     Distributor storage distributor = s_Distributors[distributorAddress];
-    //     Post storage req_post = distributor.posts[post_id];
 
-    //     if (!postExist[post_id]) {
-    //         revert Distributors__PostDoesNotExist();
-    //     }
-
-    //     for (uint256 i = 0; i < optionIds.length; i++) {
-    //         Option storage option = req_post.options[optionIds[i]];
-    //         option.imageUrl = imageUrls[i];
-
-    //     }
-
-    //     emit OptionsUpdated(distributorAddress, post_id);
-    // }
-
+    // update votes for all options in a post
     function updateVotes(
         uint64[] memory votes,
         string[] memory optionIds,
@@ -297,14 +266,18 @@ contract Distributors {
         }
     }
 
-    // // ===================================================================================================================================================
-
+    // update image url for the post option
     function updateImageUrl(
         string memory url,
         address distributorAddress,
         string memory post_id,
         string memory option_id
     ) public Listed(distributorAddress) Authorized(distributorAddress) {
+
+        if(msg.sender !=distributorAddress){
+            revert UnAuthorised_Access();
+        }
+
         if (!postExist[post_id]) {
             revert Distributors__PostDoesNotExist();
         }
@@ -317,133 +290,126 @@ contract Distributors {
         emit ImageUrlUpdated(distributorAddress, post_id, option_id, url);
     }
 
-    // //////////////////////
-    // // METHODS - Getter //
-    // //////////////////////
 
+
+    // function withdrawFromBudget(
+    //     uint256 amount,
+    //     address distributorAddress
+    // ) public Authorized(distributorAddress) Listed(distributorAddress) Authorized(distributorAddress) {
+    //     Distributor storage distributor = s_Distributors[distributorAddress];
+
+    //     if (amount > distributor.budget) {
+    //         revert Distributors__NotEnoughBudget();
+    //     }
+
+    //     distributor.budget -= amount;
+    //     (bool success, ) = msg.sender.call{value: amount}("");
+    //     require(success, "Withdrawal failed");
+
+    //     emit BudgetUpdated(distributorAddress, distributor.budget);
+    // }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////Get////////////////////////////////////////////////////////////////////////////////////
+
+    // get the budget of the distributor
     function getBudget(address distributor) public view returns (uint256) {
+        if(msg.sender != distributor){
+            revert UnAuthorised_Access();
+        }
         return s_Distributors[distributor].budget;
     }
 
+    // get the frequency set by distributor
     function getFrequency(address distributor) public view returns (uint256) {
+         if(msg.sender != distributor){
+            revert UnAuthorised_Access();
+        }
         return s_Distributors[distributor].frequency;
     }
-
+    
+    // get All the posts of the distributer
     function getAllPosts(
         address distributor_id
     ) public view returns (Post[] memory) {
-        Distributor storage distributor = s_Distributors[distributor_id];
+        Distributor memory distributor = s_Distributors[distributor_id];
+        if(!distributorExist[distributor_id]){
+            revert Distributors__DoesNotExist();
+        }
+        if(distributor.id != distributor_id){
+            revert UnAuthorised_Access();
+        }
+
         string[] memory postIds = distributor.postIds;
         Post[] memory postArray = new Post[](postIds.length);
 
         for (uint i = 0; i < postIds.length; i++) {
-            Post storage req_post = d_Posts[distributor_id][postIds[i]];
-            Post memory post = req_post;
-            postArray[i] = post;
+            Post memory req_post = d_Posts[distributor_id][postIds[i]];
+            postArray[i] = req_post;
         }
         return postArray;
     }
 
-    function ownerOfDistributor(
-        address distributor
-    ) public view returns (address) {
-        return s_Distributors[distributor].id;
-    }
-
-    // // ===================================================================================================================================================
-
+    // get the particular post of the distributor
     function getParticularPost(
         address distributor_id,
         string memory post_id
     ) public view returns (Post memory) {
+        if(postExist[post_id]){
+            revert Post_Doesnot_Exist();
+        }
         Post storage req_post = d_Posts[distributor_id][post_id];
         return req_post;
     }
 
-    // function getAllOptions(
-    //     address distributor_id,
-    //     string memory post_id
-    // ) public view returns (Option memory) {
-    //     Distributor storage distributor = s_Distributors[distributor_id];
-    //     Post storage req_post = distributor.posts[post_id];
-    //     return req_post.options;
-    // }
+    // get all the options of a particular post
+    function getAllOptions(
+        string memory postId
+    ) public view returns (Option[] memory) {
+         if(postExist[postId]){
+            revert Post_Doesnot_Exist();
+        }
+        Post memory post = s_Posts[postId];
+        string[] memory optionIds = post.optionIds;
+        Option[] memory optionArray = new Option[](3);
 
-    // function getTotalVotesOnPost(
-    //     address distributor,
-    //     string memory post_id
-    // ) public view returns (uint256 totalVotes) {
-    //     Post memory req_post = getPostById(distributor, post_id);
-    //     for (uint256 i = 0; i < 3; i++) {
-    //         totalVotes += req_post.options[i].vote;
-    //     }
-    // }
+        for(uint i=0;i<3;i++){
+        Option memory option = p_Options[postId][optionIds[i]];
+        optionArray[i]=option;
+        }
+        return optionArray;
+    }
 
-    // // ===================================================================================================================================================
+    // get total votes on a particular post
+    function getTotalVotesOnPost(
+        string memory postId
+    ) public view returns (uint256 totalVotes) {
+        if(postExist[postId]){
+            revert Post_Doesnot_Exist();
+        }
+        Post memory req_post = s_Posts[postId];
+        string[] memory optionIds = req_post.optionIds;
+        for (uint i =0 ; i<3 ; i++){
+        Option memory option = p_Options[postId][optionIds[i]];
+        totalVotes += option.vote;
+        }
+    }
 
-    // function getParticularOption(
-    //     address distributor,
-    //     string memory post_id,
-    //     string memory option_id
-    // ) public view returns (Option memory) {
-    //     return getOptionById(distributor, post_id, option_id);
-    // }
+    // get all the array of votes for the particular post
+    function getAllVotesOnPost(
+        string memory postId
+    ) public view returns (uint256[] memory) {
+        if(postExist[postId]){
+            revert Post_Doesnot_Exist();
+        }
+        Post memory req_post = s_Posts[postId];
+        string[] memory optionIds = req_post.optionIds;
+        uint256[] memory votes = new uint256[](3);
 
-    // function getVoteOnOption(
-    //     address distributor,
-    //     string memory post_id,
-    //     string memory option_id
-    // ) public view returns (uint256) {
-    //     Option memory option = getParticularOption(
-    //         distributor,
-    //         post_id,
-    //         option_id
-    //     );
-    //     return option.vote;
-    // }
+        for (uint i =0 ; i<3 ; i++){
+        Option memory option = p_Options[postId][optionIds[i]];
+        votes[i] = option.vote;
+        }
+        return votes;
+    }
 
-    // ////////////////////
-    // // METHODS - Pure //
-    // ////////////////////
-    // function isEmpty(string memory str) internal pure returns (bool) {
-    //     return bytes(str).length == 0;
-    // }
-
-    // ///////////////////////////////
-    // // METHODS - Internal Helper //
-    // ///////////////////////////////
-    // function getPostById(
-    //     address distributor,
-    //     string memory post_id
-    // ) internal view returns (Post storage) {
-    //     Post[] storage posts = s_Distributors[distributor].posts;
-
-    //     for (uint256 i = 0; i < posts.length; i++) {
-    //         if (
-    //             keccak256(abi.encodePacked(post_id)) ==
-    //             keccak256(abi.encodePacked(posts[i].id))
-    //         ) {
-    //             return posts[i];
-    //         }
-    //     }
-    //     revert Distributors__PostDoesNotExist();
-    // }
-
-    // function getOptionById(
-    //     address distributor,
-    //     string memory post_id,
-    //     string memory option_id
-    // ) internal view returns (Option storage) {
-    //     Post storage post = getPostById(distributor, post_id);
-
-    //     for (uint256 i = 0; i < 3; i++) {
-    //         if (
-    //             keccak256(abi.encodePacked(option_id)) ==
-    //             keccak256(abi.encodePacked(post.options[i].id))
-    //         ) {
-    //             return post.options[i];
-    //         }
-    //     }
-    //     revert Distributors__PostDoesNotExist();
-    // }
 }
