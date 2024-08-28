@@ -260,33 +260,28 @@ contract Distributors {
         emit OptionsUpdated(distributor_address, post_id);
     }
 
-    function updateVotes(
-        uint64[] memory votes,
+    // ===================================================================================================================================================
+
+    function updateVote(
+        uint64 votes,
         address distributor_address,
-        string memory post_id
+        string memory post_id,
+        string memory option_id
     )
         public
         Listed(distributor_address)
         Authorized(msg.sender, distributor_address)
     {
-        if (votes.length != 3) {
-            revert Distributors__BadPayload();
-        }
+        Option storage req_option = getOptionById(
+            distributor_address,
+            post_id,
+            option_id
+        );
 
-        Post storage req_post = getPostById(distributor_address, post_id);
+        req_option.vote = votes;
 
-        for (uint256 i = 0; i < votes.length; i++) {
-            req_post.options[i].vote = votes[i];
-            emit VotesUpdated(
-                distributor_address,
-                post_id,
-                req_post.options[i].id,
-                votes[i]
-            );
-        }
+        // Emit Event
     }
-
-    // ===================================================================================================================================================
 
     function updateImageUrl(
         string memory url,
@@ -384,6 +379,19 @@ contract Distributors {
             option_id
         );
         return option.vote;
+    }
+
+    function getImageUrlOption(
+        address distributor,
+        string memory post_id,
+        string memory option_id
+    ) public view returns (string memory) {
+        Option memory option = getParticularOption(
+            distributor,
+            post_id,
+            option_id
+        );
+        return option.imageUrl;
     }
 
     ////////////////////

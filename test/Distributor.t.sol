@@ -15,4 +15,16 @@ contract CounterTest is Test {
         vm.deal(distributor1, 10 ether);
         vm.deal(distributor2, 5 ether);
     }
+
+    function testInitDistributor() public {
+        //  For Now 2 Post
+    }
+
+    function testUpdateBudget() public {}
+
+    function testUpdateFrequency() public {}
+
+    function testWithdrawExceedingAmount() public {}
+
+    function testUpdatePost() public {}
 }

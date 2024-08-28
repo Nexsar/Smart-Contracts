@@ -100,22 +100,22 @@ contract Workers {
     // Update voting mappings
     function updateVotingMapping(
         address[] memory workers,
-        string[] memory post_id,
-        string[] memory option_id
+        string[] memory post_ids,
+        string[] memory option_ids
     ) public WorkersExist(workers) {
         if (
-            workers.length != post_id.length ||
-            workers.length != option_id.length
+            workers.length != post_ids.length ||
+            workers.length != option_ids.length
         ) {
             revert Workers__FalsePayload();
         }
 
         for (uint i = 0; i < workers.length; i++) {
             s_voted_post_option[workers[i]][
-                keccak256(abi.encodePacked(post_id[i]))
-            ] = keccak256(abi.encodePacked(option_id[i]));
+                keccak256(abi.encodePacked(post_ids[i]))
+            ] = keccak256(abi.encodePacked(option_ids[i]));
 
-            emit VoteUpdated(workers[i], post_id[i], option_id[i]);
+            emit VoteUpdated(workers[i], post_ids[i], option_ids[i]);
         }
     }
 
