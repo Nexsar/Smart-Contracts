@@ -66,7 +66,7 @@ contract Distributors {
 
     //Mappings
     mapping(address => Distributor) private s_Distributors; // distributor add => distributor struct
-    mapping(address => uint256) public s_DistributorBudget; // distributor add => distributor budget
+    mapping(address => uint256) private s_DistributorBudget; // distributor add => distributor budget
 
     mapping(string => Post) private s_Posts; // post id => post struct
     mapping(string => Option) private s_Options; // option id => option struct
@@ -114,6 +114,7 @@ contract Distributors {
         distributor.budget = initialBudget;
         distributor.frequency = initialFrequency;
         distributor.postIds.push(postId);
+        distributorExist[msg.sender]=true;
 
         //init Post
         Post storage post = d_Posts[msg.sender][postId];
@@ -365,7 +366,7 @@ contract Distributors {
     function getAllOptions(
         string memory postId
     ) public view returns (Option[] memory) {
-         if(postExist[postId]){
+         if(!postExist[postId]){
             revert Post_Doesnot_Exist();
         }
         Post memory post = s_Posts[postId];
