@@ -8,6 +8,7 @@ contract Distributors {
     error Distributors__Exist();
     error Distributors__BadPayload();
     error Distributors__DoesNotExist();
+    error Distributors__OptionExists();
     error Distributors__NotAuthorized();
     error Distributors__NotEnoughBudget();
     error Distributors__PostDoesNotExist();
@@ -67,8 +68,8 @@ contract Distributors {
     //////////////
     // MODIFIER //
     //////////////
-    modifier Authorized(address distributor_address) {
-        if (msg.sender != distributor_address) {
+    modifier Authorized(address distributorAddress) {
+        if (msg.sender != distributorAddress) {
             revert Distributors__NotAuthorized();
         }
         _;
@@ -84,18 +85,19 @@ contract Distributors {
     /////////////////////
     // DATA STRUCTURES //
     /////////////////////
-    mapping(bytes32  => Post) public s_Posts;
-    mapping(address => mapping(string=>Post)) public d_Posts;
-    mapping(string => mapping(string=>Option)) public p_Options;
-    mapping(bytes32 => Option) public s_Options;
-    mapping(address => Distributor) private s_Distributors;
-    mapping(address  => uint256) public s_DistributorBudget;
-    mapping(string => bool) private postExist;  // to make a check of unique postIds exist
+    mapping(address => Distributor) private s_Distributors; // distributor add => distributor struct
+    mapping(address => uint256) public s_DistributorBudget; // distributor add => distributor budget
+
+    mapping(bytes32 => Option) public s_Options; // option id => option struct
     mapping(string => bool) private optionExist; // to make a check of unique optionIds exist
+    mapping(string => mapping(string => Option)) public p_Options; // post id => option id => option struct
+
+    mapping(bytes32 => Post) public s_Posts; // post id => post struct
+    mapping(string => bool) private postExist; // to make a check of unique postIds exist
+    mapping(address => mapping(string => Post)) public d_Posts; // distributor add => post id => post struct
 
     /////////////////
-    // CONSTRUCTOR //  Option memory newOption = Option({
-            
+    // CONSTRUCTOR //
     /////////////////
     constructor() {}
 
@@ -107,13 +109,14 @@ contract Distributors {
         bool listed,
         uint256 initialBudget,
         uint256 initialFrequency,
-        string memory  postId,
-        string  memory description,
+        // post
+        string memory postId,
+        string memory description,
+        // option
         string[] memory optionIds,
-        string[]  memory imageUrls
+        string[] memory imageUrls
     ) public payable {
-
-        if(!listed){
+        if (!listed) {
             revert Distributors__DoesNotExist();
         }
 
@@ -139,45 +142,38 @@ contract Distributors {
         for (uint j = 0; j < 3; j++) {
             Option storage option = p_Options[postId][optionIds[j]];
             post.optionIds.push(optionIds[j]);
-            option.id= optionIds[j];
-            option.vote= 0;
-            option.imageUrl= imageUrls[j];
-            option.affiliated_post= postId;
-            optionExist[optionIds[j]]=true;
-            }
-        postExist[postId]=true;
+            option.id = optionIds[j];
+            option.vote = 0;
+            option.imageUrl = imageUrls[j];
+            option.affiliated_post = postId;
+            optionExist[optionIds[j]] = true;
+        }
+        postExist[postId] = true;
 
         emit DistributorListed(msg.sender);
-       
     }
-
 
     // Update Budget;
     function updateBudget(
         uint256 budget,
-        address distributor_address
-    )
-        public
-        payable
-        Listed(distributor_address)
-        Authorized(distributor_address)
-    {
+        address distributorAddress
+    ) public payable Listed(distributorAddress) Authorized(distributorAddress) {
         // if (msg.value != budget) {
         //     revert Distributors__BadPayload();
         // }
 
-        Distributor storage distributor = s_Distributors[distributor_address];
+        Distributor storage distributor = s_Distributors[distributorAddress];
         distributor.budget = budget;
         s_DistributorBudget[msg.sender] = budget;
 
-        emit BudgetUpdated(distributor_address, budget);
+        emit BudgetUpdated(distributorAddress, budget);
     }
 
     // function withdrawFromBudget(
     //     uint256 amount,
-    //     address distributor_address
-    // ) public Authorized(distributor_address) Listed(distributor_address) Authorized(distributor_address) {
-    //     Distributor storage distributor = s_Distributors[distributor_address];
+    //     address distributorAddress
+    // ) public Authorized(distributorAddress) Listed(distributorAddress) Authorized(distributorAddress) {
+    //     Distributor storage distributor = s_Distributors[distributorAddress];
 
     //     if (amount > distributor.budget) {
     //         revert Distributors__NotEnoughBudget();
@@ -187,36 +183,28 @@ contract Distributors {
     //     (bool success, ) = msg.sender.call{value: amount}("");
     //     require(success, "Withdrawal failed");
 
-    //     emit BudgetUpdated(distributor_address, distributor.budget);
+    //     emit BudgetUpdated(distributorAddress, distributor.budget);
     // }
 
     function updateFrequency(
         uint256 frequency,
-        address distributor_address
-    )
-        public
-        Listed(distributor_address)
-        Authorized(distributor_address)
-    {
-        Distributor storage distributor = s_Distributors[distributor_address];
+        address distributorAddress
+    ) public Listed(distributorAddress) Authorized(distributorAddress) {
+        Distributor storage distributor = s_Distributors[distributorAddress];
         distributor.frequency = frequency;
 
-        emit FrequencyUpdated(distributor_address, frequency);
+        emit FrequencyUpdated(distributorAddress, frequency);
     }
 
     function AddPost(
-        string memory  postId,
-        string  memory description,
+        string memory postId,
+        string memory description,
         string[] memory optionIds,
-        string[]  memory imageUrls,
-        address distributor_address
-    )
-        public
-        Listed(msg.sender)
-        Authorized(msg.sender)
-    {
-        Distributor storage distributor = s_Distributors[distributor_address];
-         //init Post
+        string[] memory imageUrls,
+        address distributorAddress
+    ) public Listed(msg.sender) Authorized(msg.sender) {
+        Distributor storage distributor = s_Distributors[distributorAddress];
+        //init Post
         Post storage post = d_Posts[msg.sender][postId];
         post.id = postId;
         post.description = description;
@@ -224,21 +212,21 @@ contract Distributors {
         distributor.postIds.push(postId);
 
         for (uint j = 0; j < 3; j++) {
-            if(optionExist[optionIds[j]]){
-                revert Distributors__PostDoesNotExist();
+            if (optionExist[optionIds[j]]) {
+                revert Distributors__OptionExists();
             }
 
             Option storage option = p_Options[postId][optionIds[j]];
             post.optionIds.push(optionIds[j]);
-            option.id= optionIds[j];
-            option.vote= 0;
-            option.imageUrl= imageUrls[j];
-            option.affiliated_post= postId;
+            option.id = optionIds[j];
+            option.vote = 0;
+            option.imageUrl = imageUrls[j];
+            option.affiliated_post = postId;
             optionExist[optionIds[j]] = true;
-            }
+        }
         postExist[postId] = true;
 
-        emit PostUpdated(distributor_address, post.id);
+        emit PostUpdated(distributorAddress, post.id);
     }
 
     // // ===================================================================================================================================================
@@ -246,37 +234,32 @@ contract Distributors {
     function updateDescription(
         string memory desc,
         string memory post_id,
-        address distributor_address
-    )
-        public
-        Listed(distributor_address)
-        Authorized( distributor_address)
-    {
-       
-        Post storage req_post = d_Posts[distributor_address][post_id] ;
+        address distributorAddress
+    ) public Listed(distributorAddress) Authorized(distributorAddress) {
+        Post storage req_post = d_Posts[distributorAddress][post_id];
 
         if (!postExist[post_id]) {
             revert Distributors__PostDoesNotExist();
         }
 
         req_post.description = desc;
-        emit DescriptionUpdated(distributor_address, post_id, desc); // Added event
+        emit DescriptionUpdated(distributorAddress, post_id, desc); // Added event
     }
 
     // function updateOptions(
     //     string[] memory optionIds,
     //     string[]  memory imageUrls,
-    //     address distributor_address,
+    //     address distributorAddress,
     //     string memory post_id
     // )
     //     public
-    //     Listed(distributor_address)
-    //     Authorized(distributor_address)
+    //     Listed(distributorAddress)
+    //     Authorized(distributorAddress)
     // {
     //     // if (options.length == 0 || options.length > 3) {
     //     //     revert Distributors__BadPayload();
     //     // }
-    //     Distributor storage distributor = s_Distributors[distributor_address];
+    //     Distributor storage distributor = s_Distributors[distributorAddress];
     //     Post storage req_post = distributor.posts[post_id];
 
     //     if (!postExist[post_id]) {
@@ -287,33 +270,26 @@ contract Distributors {
     //         Option storage option = req_post.options[optionIds[i]];
     //         option.imageUrl = imageUrls[i];
 
-
-
     //     }
 
-    //     emit OptionsUpdated(distributor_address, post_id);
+    //     emit OptionsUpdated(distributorAddress, post_id);
     // }
 
     function updateVotes(
         uint64[] memory votes,
         string[] memory optionIds,
-        address distributor_address,
+        address distributorAddress,
         string memory post_id
-    )
-        public
-        Listed(distributor_address)
-        Authorized(distributor_address)
-    {
-        if (votes.length != 3 || optionIds.length != 3 ) {
+    ) public Listed(distributorAddress) Authorized(distributorAddress) {
+        if (votes.length != 3 || optionIds.length != 3) {
             revert Distributors__BadPayload();
         }
-      
 
         for (uint256 i = 0; i < votes.length; i++) {
             Option storage option = p_Options[post_id][optionIds[i]];
             option.vote = votes[i];
             emit VotesUpdated(
-                distributor_address,
+                distributorAddress,
                 post_id,
                 optionIds[i],
                 votes[i]
@@ -325,16 +301,10 @@ contract Distributors {
 
     function updateImageUrl(
         string memory url,
-        address distributor_address,
+        address distributorAddress,
         string memory post_id,
         string memory option_id
-    )
-        public
-        Listed(distributor_address)
-        Authorized(distributor_address)
-    {
-       
-        
+    ) public Listed(distributorAddress) Authorized(distributorAddress) {
         if (!postExist[post_id]) {
             revert Distributors__PostDoesNotExist();
         }
@@ -344,7 +314,7 @@ contract Distributors {
         }
         Option storage option = p_Options[post_id][option_id];
         option.imageUrl = url;
-        emit ImageUrlUpdated(distributor_address, post_id, option_id, url);
+        emit ImageUrlUpdated(distributorAddress, post_id, option_id, url);
     }
 
     // //////////////////////
@@ -361,17 +331,17 @@ contract Distributors {
 
     function getAllPosts(
         address distributor_id
-    ) public view returns (Post[] memory ) {
+    ) public view returns (Post[] memory) {
         Distributor storage distributor = s_Distributors[distributor_id];
         string[] memory postIds = distributor.postIds;
-        Post[] memory postArray = new Post[](postIds.length); 
+        Post[] memory postArray = new Post[](postIds.length);
 
-        for(uint i=0;i<postIds.length;i++){
+        for (uint i = 0; i < postIds.length; i++) {
             Post storage req_post = d_Posts[distributor_id][postIds[i]];
             Post memory post = req_post;
-            postArray[i]=post;
+            postArray[i] = post;
         }
-        return postArray ;
+        return postArray;
     }
 
     function ownerOfDistributor(
@@ -386,7 +356,6 @@ contract Distributors {
         address distributor_id,
         string memory post_id
     ) public view returns (Post memory) {
-
         Post storage req_post = d_Posts[distributor_id][post_id];
         return req_post;
     }
