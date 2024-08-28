@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import {Distributors} from "./Distributor.sol";
-
 contract Workers {
     ////////////
     // ERRORS //
