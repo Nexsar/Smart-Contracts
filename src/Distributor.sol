@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 contract Distributors {
     // Errors
     error Distributors__Exist();
+    error Workers__WithdrawFailed();
     error Distributors__PostExists();
     error Distributors__BadPayload();
     error Distributors__DoesNotExist();
@@ -40,6 +41,7 @@ contract Distributors {
         string optionId,
         string newImageUrl
     );
+    event RewardWithdrawn(address indexed worker, uint256 amount);
 
     // Structs
     struct Option {
@@ -369,6 +371,19 @@ contract Distributors {
         Option storage option = p_Options[postId][optionId];
         option.imageUrl = url;
         emit ImageUrlUpdated(distributorAddress, postId, optionId, url);
+    }
+
+    function withdrawRewards(address worker, uint256 rewards) public {
+        if (rewards == 0) {
+            revert Distributors__BadPayload();
+        }
+
+        (bool success, ) = worker.call{value: rewards}("");
+        if (!success) {
+            revert Workers__WithdrawFailed();
+        }
+
+        emit RewardWithdrawn(worker, rewards);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
