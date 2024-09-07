@@ -1,4 +1,4 @@
-# Smart Contract
+# Nexsar - Smart Contract
 
 ## Turks
 
@@ -38,7 +38,7 @@
 
 ## Table of Contents
 
-- [Smart Contract](#smart-contract)
+- [Nexsar - Smart Contract](#nexsar---smart-contract)
   - [Turks](#turks)
   - [DalleNft](#dallenft)
   - [Features (Turks)](#features-turks)
