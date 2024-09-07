@@ -105,7 +105,7 @@ contract Turks {
 
     mapping(string => bool) private optionExist; // to make a check of unique optionIds exist
     mapping(string => bool) private postExist; // to make a check of unique postIds exist
-    mapping(address => bool) private distributorExist;
+    mapping(address => bool) public distributorExist;
 
     mapping(string => mapping(string => Option)) private p_Options; // post id => option id => option struct
     mapping(address => mapping(string => Post)) private d_Posts; // distributor add => post id => post struct
