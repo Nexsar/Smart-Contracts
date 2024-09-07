@@ -88,7 +88,15 @@ contract Turks {
         _;
     }
 
+    modifier isOwner() {
+        if (owner != msg.sender) {
+            revert Turks__UnAuthorisedAccess();
+        }
+        _;
+    }
+
     //Mappings
+    address public owner;
     mapping(address => Distributor) private s_Distributors; // distributor add => distributor struct
     mapping(address => uint256) private s_DistributorBudget; // distributor add => distributor budget
 
@@ -107,7 +115,9 @@ contract Turks {
     mapping(address => mapping(string => string)) private s_votedPostOption; // worker add => Post id => option id
 
     //constructor
-    constructor() {}
+    constructor() {
+        owner = msg.sender;
+    }
 
     // init the distributor
 
@@ -299,7 +309,7 @@ contract Turks {
         string[] memory optionIds,
         address distributorAddress,
         string memory postId
-    ) public Listed(distributorAddress) Authorized(distributorAddress) {
+    ) public Listed(distributorAddress) isOwner {
         if (votes.length != 3 || optionIds.length != 3) {
             revert Turks__BadPayload();
         }
@@ -403,24 +413,6 @@ contract Turks {
         }
     }
 
-    // get all the array of votes for the particular post
-    function getAllVotesOnPost(
-        string memory postId
-    ) public view returns (uint256[] memory) {
-        if (!postExist[postId]) {
-            revert Turks__PostDNE();
-        }
-        Post memory req_post = s_Posts[postId];
-        string[] memory optionIds = req_post.optionIds;
-        uint256[] memory votes = new uint256[](3);
-
-        for (uint i = 0; i < 3; i++) {
-            Option memory option = p_Options[postId][optionIds[i]];
-            votes[i] = option.vote;
-        }
-        return votes;
-    }
-
     ////////////////
     //// WORKER ////
     ////////////////
@@ -434,14 +426,14 @@ contract Turks {
     // Update rewards for workers
     function updateRewards(
         address[] memory workers,
-        uint256[] memory rewards
-    ) public WorkersExist(workers) {
-        if (workers.length != rewards.length) {
+        uint256 rewards
+    ) public WorkersExist(workers) isOwner {
+        if (workers.length == 0) {
             revert Turks__BadPayload();
         }
 
         for (uint i = 0; i < workers.length; i++) {
-            s_turksReward[workers[i]] += rewards[i];
+            s_turksReward[workers[i]] += rewards;
         }
     }
 
@@ -450,7 +442,7 @@ contract Turks {
         address[] memory workers,
         string[] memory postIds,
         string[] memory optionIds
-    ) public WorkersExist(workers) {
+    ) public WorkersExist(workers) isOwner {
         if (
             workers.length != postIds.length ||
             workers.length != optionIds.length
