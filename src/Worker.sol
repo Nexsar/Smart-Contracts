@@ -129,14 +129,6 @@ contract Workers {
 
         // Check-Effects-Interactions :: No chance of Renetrancy Attack
         s_turksReward[msg.sender] = 0;
-
-        (bool success, ) = msg.sender.call{value: reward}("");
-        if (!success) {
-            s_turksReward[msg.sender] = reward;
-            revert Workers__WithdrawFailed();
-        }
-
-        emit RewardWithdrawn(msg.sender, reward);
     }
 
     /////////////
