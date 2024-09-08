@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 contract Turks {
     // Errors
-    error Post_Exist();
+    error Turks__PostExist();
     error Turks__PostDNE();
     error Turks__BadPayload();
     error Turks__DoesNotExist();
@@ -132,10 +132,12 @@ contract Turks {
         string[] memory optionIds,
         string[] memory imageUrls
     ) public payable {
-        require(msg.value == initialBudget, "msg.value != budget provided");
-
         if (!listed) {
-            revert Turks__DoesNotExist();
+            revert Turks__BadPayload();
+        }
+
+        if (msg.value < initialBudget) {
+            revert Turks__InsufficientBalance();
         }
 
         if (distributorExist[msg.sender]) {
@@ -143,7 +145,7 @@ contract Turks {
         }
 
         if (postExist[postId]) {
-            revert Post_Exist();
+            revert Turks__PostExist();
         }
 
         // Init new distributor
@@ -228,7 +230,7 @@ contract Turks {
         }
 
         if (postExist[postId]) {
-            revert Post_Exist();
+            revert Turks__PostExist();
         }
 
         Distributor storage distributor = s_Distributors[distributorAddress];
