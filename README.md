@@ -31,7 +31,7 @@
 
 | Contract     | Contract Address                           | Explorer Link                                                                                           |
 | ------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| Turks.sol    | 0x7B5B43d1D8a6bF00437C4Aa38E8844655058713e | [Sepolia Etherscan](https://sepolia.etherscan.io/address/0x7B5B43d1D8a6bF00437C4Aa38E8844655058713e)    |
+| Turks.sol    | 0x9800E70e6531c5ABFaa6df5f8F5152a18998C701 | [Sepolia Etherscan](https://sepolia.etherscan.io/address/0x9800E70e6531c5ABFaa6df5f8F5152a18998C701)    |
 | DalleNft.sol | 0x5a76D8a2BAD252fe57fb5281029a46C65d96aF52 | [Galadriel Explorer](https://explorer.galadriel.com/address/0x5a76D8a2BAD252fe57fb5281029a46C65d96aF52) |
 
 ---
