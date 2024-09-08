@@ -5,180 +5,267 @@ import "forge-std/Test.sol";
 import "../src/Turks.sol";
 
 contract TurksTest is Test {
-    Turks private turks;
-    address distributor = address(0x123);
-    address distributor2 = address(0x456);
+    Turks turks;
+    address owner;
+    address distributor;
+    address worker1;
+    address worker2;
 
     function setUp() public {
         turks = new Turks();
-        vm.deal(distributor, 10 ether);
-        vm.deal(distributor2, 5 ether);
+        owner = address(this);
+        distributor = address(0x1);
+        worker1 = address(0x2);
+        worker2 = address(0x3);
+        vm.deal(distributor, 100 ether);
+        vm.deal(worker1, 1 ether);
+        vm.deal(worker2, 1 ether);
     }
 
-    // Test initialization of distributor
-    function testInitDistributorSuccess() public {
-        string[] memory optionIds;
-        string[] memory imageUrls;
+    function testInitDistributor() public {
+        string[] memory optionIds = new string[](3);
         optionIds[0] = "option1";
         optionIds[1] = "option2";
         optionIds[2] = "option3";
-        imageUrls[0] = "image1";
-        imageUrls[1] = "image2";
-        imageUrls[2] = "image3";
 
-        // Simulate distributor initialization with valid inputs
+        string[] memory imageUrls = new string[](3);
+        imageUrls[0] = "url1";
+        imageUrls[1] = "url2";
+        imageUrls[2] = "url3";
+
         vm.prank(distributor);
-        turks.initDistributor{value: 5 ether}(
+        turks.initDistributor{value: 10 ether}(
             true,
-            5 ether,
-            10,
+            10 ether,
+            1,
             "post1",
-            "description1",
+            "Test post",
             optionIds,
             imageUrls
         );
 
-        // Check the distributor exists
-        assertTrue(turks.distributorExist[distributor]);
+        assertEq(turks.getBudget(distributor), 10 ether);
+        assertTrue(turks.distributorExist(distributor));
+    }
 
-        // Check distributor budget
+    function testFailInitDistributorInsufficientBalance() public {
+        string[] memory optionIds = new string[](3);
+        string[] memory imageUrls = new string[](3);
+
+        vm.prank(distributor);
+        turks.initDistributor{value: 5 ether}(
+            true,
+            10 ether,
+            1,
+            "post1",
+            "Test post",
+            optionIds,
+            imageUrls
+        );
+    }
+
+    function testDepositETH() public {
+        testInitDistributor();
+
+        vm.prank(distributor);
+        turks.depositETH{value: 5 ether}();
+
+        assertEq(turks.getBudget(distributor), 15 ether);
+    }
+
+    function testWithdrawETH() public {
+        testInitDistributor();
+
+        uint256 initialBalance = distributor.balance;
+
+        vm.prank(distributor);
+        turks.withdrawETH(5 ether);
+
         assertEq(turks.getBudget(distributor), 5 ether);
+        assertEq(distributor.balance, initialBalance + 5 ether);
+    }
 
-        // Check if the post is properly initialized
+    function testFailWithdrawETHInsufficientBalance() public {
+        testInitDistributor();
+
+        vm.prank(distributor);
+        turks.withdrawETH(15 ether);
+    }
+
+    function testAddPost() public {
+        testInitDistributor();
+
+        string[] memory optionIds = new string[](3);
+        optionIds[0] = "option4";
+        optionIds[1] = "option5";
+        optionIds[2] = "option6";
+
+        string[] memory imageUrls = new string[](3);
+        imageUrls[0] = "url4";
+        imageUrls[1] = "url5";
+        imageUrls[2] = "url6";
+
+        vm.prank(distributor);
+        turks.AddPost(
+            "post2",
+            "Second post",
+            optionIds,
+            imageUrls,
+            distributor
+        );
+
+        Turks.Post[] memory posts = turks.getAllPosts(distributor);
+        assertEq(posts.length, 2);
+        assertEq(posts[1].id, "post2");
+    }
+
+    function testUpdateBudget() public {
+        testInitDistributor();
+
+        vm.prank(distributor);
+        turks.updateBudget{value: 5 ether}(5 ether, distributor);
+
+        assertEq(turks.getBudget(distributor), 15 ether);
+    }
+
+    function testUpdateDescription() public {
+        testInitDistributor();
+
+        vm.prank(distributor);
+        turks.updateDescription("Updated description", "post1", distributor);
+
+        Turks.Post memory post = turks.getParticularPost(distributor, "post1");
+        assertEq(post.description, "Updated description");
+    }
+
+    function testUpdateVotes() public {
+        testInitDistributor();
+
+        uint64[] memory votes = new uint64[](3);
+        votes[0] = 10;
+        votes[1] = 20;
+        votes[2] = 30;
+
+        string[] memory optionIds = new string[](3);
+        optionIds[0] = "option1";
+        optionIds[1] = "option2";
+        optionIds[2] = "option3";
+
+        turks.updateVotes(votes, optionIds, distributor, "post1");
+
+        Turks.Option[] memory options = turks.getAllOptions("post1");
+        assertEq(options[0].vote, 10);
+        assertEq(options[1].vote, 20);
+        assertEq(options[2].vote, 30);
+    }
+
+    function testInitWorker() public {
+        vm.prank(worker1);
+        turks.initWorker();
+
+        assertTrue(turks.s_WorkerListed(worker1));
+    }
+
+    function testUpdateRewards() public {
+        vm.prank(worker1);
+        turks.initWorker();
+
+        vm.prank(worker2);
+        turks.initWorker();
+
+        address[] memory workers = new address[](2);
+        workers[0] = worker1;
+        workers[1] = worker2;
+
+        turks.updateRewards(workers, 1 ether);
+
+        assertEq(turks.getRewards(worker1), 1 ether);
+        assertEq(turks.getRewards(worker2), 1 ether);
+    }
+
+    function testUpdateVotingMapping() public {
+        vm.prank(worker1);
+        turks.initWorker();
+
+        address[] memory workers = new address[](1);
+        workers[0] = worker1;
+
+        string[] memory postIds = new string[](1);
+        postIds[0] = "post1";
+
+        string[] memory optionIds = new string[](1);
+        optionIds[0] = "option1";
+
+        turks.updateVotingMapping(workers, postIds, optionIds);
+
+        assertEq(turks.getVotedOption(worker1, "post1"), "option1");
+    }
+
+    function testWithdrawRewards() public {
+        vm.prank(worker1);
+        turks.initWorker();
+
+        address[] memory workers = new address[](1);
+        workers[0] = worker1;
+
+        // Fund the contract with ETH
+        dealToContract(1 ether);
+
+        turks.updateRewards(workers, 1 ether);
+
+        uint256 initialBalance = worker1.balance;
+
+        vm.prank(worker1);
+        turks.withdrawRewards();
+
+        assertEq(worker1.balance, initialBalance + 1 ether);
+        assertEq(turks.getRewards(worker1), 0);
+    }
+
+    // Helper function to fund the contract with ETH
+    function dealToContract(uint256 amount) internal {
+        vm.deal(address(turks), amount);
+    }
+
+    function testFailWithdrawRewardsNoRewards() public {
+        vm.prank(worker1);
+        turks.initWorker();
+
+        vm.prank(worker1);
+        turks.withdrawRewards();
+    }
+
+    function testGetAllPosts() public {
+        testAddPost();
+
+        Turks.Post[] memory posts = turks.getAllPosts(distributor);
+        assertEq(posts.length, 2);
+        assertEq(posts[0].id, "post1");
+        assertEq(posts[1].id, "post2");
+    }
+
+    function testGetParticularPost() public {
+        testInitDistributor();
+
         Turks.Post memory post = turks.getParticularPost(distributor, "post1");
         assertEq(post.id, "post1");
-        assertEq(post.description, "description1");
+        assertEq(post.description, "Test post");
+    }
 
-        // Check if the options are initialized
+    function testGetAllOptions() public {
+        testInitDistributor();
+
         Turks.Option[] memory options = turks.getAllOptions("post1");
+        assertEq(options.length, 3);
         assertEq(options[0].id, "option1");
         assertEq(options[1].id, "option2");
         assertEq(options[2].id, "option3");
-        assertEq(options[0].imageUrl, "image1");
     }
 
-    // // Test failure on duplicate distributor
-    // function testFailInitDuplicateDistributor() public {
-    //     turks.initDistributor{value: 5 ether}(true, 5 ether, 10, "post2", "description2", new string , new s );
-    //     ould revert because distributor exists
-    //     vm.expectRevert(Turks.Turks__DistributorExists.selector);
-    //     turks.initDistributor{value: 5 ether}(true, 5 ether, 10, "post2", "description2", new string , new string );}
+    function testGetTotalVotesOnPost() public {
+        testUpdateVotes();
 
-    // // Teding a post
-    // function testAddPost() public {
-    //     string[] memory optionIds = ney imageUrls = ne "option1";
-    //     optionIds[1] = "option2";
-    //     optionIds[2] = "option3";
-    //     imageUrls[0] = "image1";
-    //     imageUrls[1] = "image2";
-    //     imageUrls[2] = "image3";
-
-    //     turks.AddPost("post2", "description2", optionIds, imageUrls, distributor);
-
-    //     Turks.Post memory post = turks.getParticularPost(distributor, "post2");
-    //     assertEq(post.id, "post2");
-    //     assertEq(post.optionIds[0], "option1");
-    // }
-
-    // // Test failure when adding duplicate post
-    // function testFailAddDuplicatePost() public {
-    //     string[] memory optionIds = ney imageUrls = ne "option1";
-    //     optionIds[1] = "option2";
-    //     optionIds[2] = "option3";
-    //     imageUrls[0] = "image1";
-    //     imageUrls[1] = "image2";
-    //     imageUrls[2] = "image3";
-
-    //     turks.AddPost("post2", "description2", optionIds, imageUrls, distributor);
-    //     // Reverts due to existing postId
-    //     vm.expectRevert(Turks.Post_Exist.selector);
-    //     turks.AddPost("post2", "description2", optionIds, imageUrls, distributor);
-    // }
-
-    // // Test depositing ETH
-    // function testDepositETH() public {
-    //     uint256 initialBudget = turks.getBudget(distributor);
-    //     turks.depositETH{value: 1 ether}();
-    //     assertEq(turks.getBudget(distributor), initialBudget + 1 ether);
-    // }
-
-    // // Test withdrawal of ETH
-    // function testWithdrawETH() public {
-    //     uint256 initialBudget = turks.getBudget(distributor);
-    //     turks.withdrawETH(1 ether);
-    //     assertEq(turks.getBudget(distributor), initialBudget - 1 ether);
-    // }
-
-    // // Test failure when withdrawing more than available balance
-    // function testFailWithdrawExceedsBalance() public {
-    //     turks.withdrawETH(10 ether);
-    // }
-
-    // // Test updating post description
-    // function testUpdateDescription() public {
-    //     turks.updateDescription("new description", "post1", distributor);
-    //     Turks.Post memory post = turks.getParticularPost(distributor, "post1");
-    //     assertEq(post.description, "new description");
-    // }
-
-    // // Test vote updating
-    // function testUpdateVotes() public {
-    //     uint64[] memory votes = new uiy optionIds = ne "option1";
-    //     optionIds[1] = "option2";
-    //     optionIds[2] = "option3";
-    //     votes[0] = 10;
-    //     votes[1] = 20;
-    //     votes[2] = 30;
-
-    //     turks.updateVotes(votes, optionIds, distributor, "post1");
-
-    //     Turks.Option[] memory options = turks.getAllOptions("post1");
-    //     assertEq(options[0].vote, 10);
-    //     assertEq(options[1].vote, 20);
-    //     assertEq(options[2].vote, 30);
-    // }
-
-    // // Test worker initialization
-    // function testInitWorker() public {
-    //     turks.initWorker();
-    //     assertTrue(turks.s_WorkerListed(worker));
-    // }
-
-    // // Test worker rewards
-    // function testWorkerRewards() public {
-    //     address[] memory workers = new orker;
-    //     turks.updateRewards(workers, 100);
-    //     assertEq(turks.getRewards(worker), 100);
-    // }
-
-    // // Test reward withdrawal
-    // function testWithdrawRewards() public {
-    //     address[] memory workers = new orker;
-    //     turks.updateRewards(workers, 100);
-    //     turks.withdrawRewards();
-    //     assertEq(turks.getRewards(worker), 0);
-    // }
-
-    // // Test failure when reward is 0
-    // function testFailWithdrawRewardsWithZero() public {
-    //     vm.expectRevert(Turks.Turks__AmountLessThanEqual0.selector);
-    //     turks.withdrawRewards();
-    // }
-
-    // // Test vote mappings for workers
-    // function testVotingMapping() public {
-    //     address[] memory workers = new y postIds = new y optionIds = neorker;
-    //     postIds[0] = "post1";
-    //     optionIds[0] = "option1";
-
-    //     turks.updateVotingMapping(workers, postIds, optionIds);
-    //     assertEq(turks.getVotedOption(worker, "post1"), "option1");
-    // }
-
-    // // Test failure if worker does not exist
-    // function testFailUpdateRewardsWorkerDNE() public {
-    //     address[] memory workers = new ddress(0x789);
-    //     vm.expectRevert(Turks.Turks__WorkerDNE.selector);
-    //     turks.updateRewards(workers, 100);
-    // }
+        uint256 totalVotes = turks.getTotalVotesOnPost("post1");
+        assertEq(totalVotes, 60);
+    }
 }
