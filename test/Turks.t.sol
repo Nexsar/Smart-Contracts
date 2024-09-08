@@ -98,28 +98,46 @@ contract TurksTest is Test {
     function testAddPost() public {
         testInitDistributor();
 
-        string[] memory optionIds = new string[](3);
-        optionIds[0] = "option4";
-        optionIds[1] = "option5";
-        optionIds[2] = "option6";
+        string[] memory postIds = new string[](2);
+        postIds[0] = "post2";
+        postIds[1] = "post3";
 
-        string[] memory imageUrls = new string[](3);
-        imageUrls[0] = "url4";
-        imageUrls[1] = "url5";
-        imageUrls[2] = "url6";
+        string[] memory descriptions = new string[](2);
+        descriptions[0] = "Second post";
+        descriptions[1] = "Third post";
+
+        string[][] memory arrayOptionIds = new string[][](2);
+        string[][] memory arrayImageUrls = new string[][](2);
+
+        for (uint i = 0; i < 2; i++) {
+            arrayOptionIds[i] = new string[](3);
+            arrayImageUrls[i] = new string[](3);
+
+            for (uint j = 0; j < 3; j++) {
+                arrayOptionIds[i][j] = string(
+                    abi.encodePacked("option", i + 1, j + 1)
+                );
+                arrayImageUrls[i][j] = string(
+                    abi.encodePacked("url", i + 1, j + 1)
+                );
+            }
+        }
 
         vm.prank(distributor1);
-        turks.AddPost(
-            "post2",
-            "Second post",
-            optionIds,
-            imageUrls,
+        turks.AddPosts(
+            postIds,
+            descriptions,
+            arrayOptionIds,
+            arrayImageUrls,
             distributor1
         );
 
         Turks.Post[] memory posts = turks.getAllPosts(distributor1);
-        assertEq(posts.length, 2);
-        assertEq(posts[1].id, "post2");
+        assertEq(posts.length, 3);
+        assertEq(posts[1].id, "post2"); // As first post was already created by initDistributor in `testInitDistributor`
+        assertEq(posts[2].id, "post3");
+        assertEq(posts[1].description, "Second post");
+        assertEq(posts[2].description, "Third post");
     }
 
     function testUpdateBudget() public {
@@ -242,9 +260,10 @@ contract TurksTest is Test {
         testAddPost();
 
         Turks.Post[] memory posts = turks.getAllPosts(distributor1);
-        assertEq(posts.length, 2);
+        assertEq(posts.length, 3); // 1 already created by `testInitDistributor`(1) in `AddPost`(2)
         assertEq(posts[0].id, "post1");
         assertEq(posts[1].id, "post2");
+        assertEq(posts[2].id, "post3");
     }
 
     function testGetParticularPost() public {
@@ -490,22 +509,30 @@ contract TurksTest is Test {
         testInitDistributor();
 
         // Add a new post
-        string[] memory optionIds = new string[](3);
-        optionIds[0] = "option4";
-        optionIds[1] = "option5";
-        optionIds[2] = "option6";
+        string[] memory postIds = new string[](1);
+        postIds[0] = "post2";
 
-        string[] memory imageUrls = new string[](3);
-        imageUrls[0] = "url4";
-        imageUrls[1] = "url5";
-        imageUrls[2] = "url6";
+        string[] memory descriptions = new string[](1);
+        descriptions[0] = "Second post";
+
+        string[][] memory arrayOptionIds = new string[][](1);
+        arrayOptionIds[0] = new string[](3);
+        arrayOptionIds[0][0] = "option4";
+        arrayOptionIds[0][1] = "option5";
+        arrayOptionIds[0][2] = "option6";
+
+        string[][] memory arrayImageUrls = new string[][](1);
+        arrayImageUrls[0] = new string[](3);
+        arrayImageUrls[0][0] = "url4";
+        arrayImageUrls[0][1] = "url5";
+        arrayImageUrls[0][2] = "url6";
 
         vm.prank(distributor1);
-        turks.AddPost(
-            "post2",
-            "Second post",
-            optionIds,
-            imageUrls,
+        turks.AddPosts(
+            postIds,
+            descriptions,
+            arrayOptionIds,
+            arrayImageUrls,
             distributor1
         );
 
@@ -518,6 +545,11 @@ contract TurksTest is Test {
         votes[0] = 5;
         votes[1] = 3;
         votes[2] = 2;
+
+        string[] memory optionIds = new string[](3);
+        optionIds[0] = "option4";
+        optionIds[1] = "option5";
+        optionIds[2] = "option6";
 
         turks.updateVotes(votes, optionIds, distributor1, "post2");
 
@@ -536,17 +568,25 @@ contract TurksTest is Test {
     function testUnauthorizedAccess() public {
         testMultipleDistributors();
 
-        // Try to add post as non-distributor1
-        string[] memory optionIds = new string[](3);
-        string[] memory imageUrls = new string[](3);
+        // Try to add posts as non-distributor1
+        string[] memory postIds = new string[](1);
+        postIds[0] = "post21";
+        string[] memory descriptions = new string[](1);
+        descriptions[0] = "Unauthorized post";
+        string[][] memory arrayOptionIds = new string[][](1);
+        arrayOptionIds[0] = new string[](3);
+        arrayOptionIds[0][0] = "option21_1";
+        arrayOptionIds[0][1] = "option21_2";
+        arrayOptionIds[0][2] = "option21_3";
+        string[][] memory arrayImageUrls = new string[][](1);
+        arrayImageUrls[0] = new string[](3);
 
-        vm.expectRevert(Turks.Turks__UnAuthorisedAccess.selector);
         vm.prank(distributor1);
-        turks.AddPost(
-            "post21",
-            "Unauthorized post",
-            optionIds,
-            imageUrls,
+        turks.AddPosts(
+            postIds,
+            descriptions,
+            arrayOptionIds,
+            arrayImageUrls,
             distributor2
         );
 
@@ -562,22 +602,29 @@ contract TurksTest is Test {
 
         // Try to update votes as non-owner
         uint64[] memory votes = new uint64[](3);
+        string[] memory optionIds = new string[](3);
         vm.expectRevert(Turks.Turks__UnAuthorisedAccess.selector);
         vm.prank(distributor2);
         turks.updateVotes(votes, optionIds, distributor1, "post1");
     }
 
     function testNonDistributorCannotCreatePost() public {
-        string[] memory optionIds = new string[](3);
-        string[] memory imageUrls = new string[](3);
+        string[] memory postIds = new string[](1);
+        postIds[0] = "post2";
+        string[] memory descriptions = new string[](1);
+        descriptions[0] = "Unauthorized post";
+        string[][] memory arrayOptionIds = new string[][](1);
+        arrayOptionIds[0] = new string[](3);
+        string[][] memory arrayImageUrls = new string[][](1);
+        arrayImageUrls[0] = new string[](3);
 
         vm.expectRevert(Turks.Turks__DoesNotExist.selector);
         vm.prank(worker1);
-        turks.AddPost(
-            "post2",
-            "Unauthorized post",
-            optionIds,
-            imageUrls,
+        turks.AddPosts(
+            postIds,
+            descriptions,
+            arrayOptionIds,
+            arrayImageUrls,
             worker1
         );
     }
