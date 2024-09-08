@@ -36,6 +36,23 @@
 
 ---
 
+## Code Coverage
+
+```
+Test Summary:
+
+╭------------+--------+--------+---------╮
+| Test Suite | Passed | Failed | Skipped |
++========================================+
+| TurksTest  |   41   |    0   |    0    |
+╰------------+--------+--------+---------╯
+
+| File          | % Lines          | % Statements     | % Branches     | % Funcs         |
+| ------------- | ---------------- | ---------------- | -------------- | --------------- |
+| src/Turks.sol | 79.65% (137/172) | 84.21% (160/190) | 24.39% (10/41) | 100.00% (25/25) |
+| Total         | 79.65% (137/172) | 84.21% (160/190) | 24.39% (10/41) | 100.00% (25/25) |
+```
+
 ## Table of Contents
 
 - [Nexsar - Smart Contract](#nexsar---smart-contract)
@@ -44,6 +61,7 @@
   - [Features (Turks)](#features-turks)
   - [Features (Dalle)](#features-dalle)
   - [Deployed Contracts](#deployed-contracts)
+  - [Code Coverage](#code-coverage)
   - [Table of Contents](#table-of-contents)
   - [Overview](#overview)
     - [Use Cases](#use-cases)
