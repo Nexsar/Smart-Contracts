@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "forge-std/Test.sol";
-import "../src/Turks.sol";
+import {Test, console} from "forge-std/Test.sol";
+import {Turks} from "../src/Turks.sol";
 
 contract TurksTest is Test {
     Turks turks;
@@ -580,5 +580,294 @@ contract TurksTest is Test {
             imageUrls,
             worker1
         );
+    }
+
+    function testFailInitDistributorNotListed() public {
+        string[] memory optionIds0 = new string[](3);
+        string[] memory imageUrls0 = new string[](3);
+
+        vm.prank(distributor1);
+        turks.initDistributor{value: 10 ether}(
+            true,
+            10 ether,
+            1,
+            "post2",
+            "Test post 2",
+            optionIds0,
+            imageUrls0
+        );
+
+        address random = makeAddr("Random");
+        vm.deal(random, 11 ether);
+
+        string[] memory optionIds = new string[](3);
+        string[] memory imageUrls = new string[](3);
+
+        vm.expectRevert(Turks.Turks__BadPayload.selector);
+        vm.prank(random);
+        turks.initDistributor{value: 10 ether}(
+            false, // not listed
+            10 ether,
+            1,
+            "post1",
+            "Test post",
+            optionIds,
+            imageUrls
+        );
+    }
+
+    function testFailInitDistributorAlreadyExists() public {
+        string[] memory optionIds = new string[](3);
+        string[] memory imageUrls = new string[](3);
+
+        vm.prank(distributor1);
+        turks.initDistributor{value: 10 ether}(
+            true,
+            10 ether,
+            1,
+            "post2",
+            "Test post 2",
+            optionIds,
+            imageUrls
+        );
+
+        vm.prank(distributor1);
+        vm.expectRevert(Turks.Turks__DistributorExists.selector);
+        turks.initDistributor{value: 10 ether}(
+            true,
+            10 ether,
+            1,
+            "post21",
+            "Test post 2",
+            optionIds,
+            imageUrls
+        );
+    }
+
+    function testFailUpdateDescriptionNonExistentPost() public {
+        string[] memory optionIds = new string[](3);
+        string[] memory imageUrls = new string[](3);
+
+        vm.prank(distributor1);
+        turks.initDistributor{value: 10 ether}(
+            true,
+            10 ether,
+            1,
+            "post2",
+            "Test post 2",
+            optionIds,
+            imageUrls
+        );
+
+        vm.prank(distributor1);
+        vm.expectRevert(Turks.Turks__PostDoesNotExist.selector);
+        turks.updateDescription(
+            "Updated description",
+            "nonexistentpost",
+            distributor1
+        );
+    }
+
+    function testFailUpdateVotesNonExistentOption() public {
+        string[] memory optionIds0 = new string[](3);
+        string[] memory imageUrls0 = new string[](3);
+
+        vm.prank(distributor1);
+        turks.initDistributor{value: 10 ether}(
+            true,
+            10 ether,
+            1,
+            "post2",
+            "Test post 2",
+            optionIds0,
+            imageUrls0
+        );
+
+        uint64[] memory votes = new uint64[](3);
+        string[] memory optionIds = new string[](3);
+        optionIds[0] = "option1";
+        optionIds[1] = "option2";
+        optionIds[2] = "nonexistentoption";
+
+        vm.expectRevert(Turks.Turks__DoesNotExist.selector);
+        turks.updateVotes(votes, optionIds, distributor1, "post1");
+    }
+
+    function testFailGetAllPostsNonExistentDistributor() public {
+        string[] memory optionIds0 = new string[](3);
+        string[] memory imageUrls0 = new string[](3);
+
+        vm.prank(distributor1);
+        turks.initDistributor{value: 10 ether}(
+            true,
+            10 ether,
+            1,
+            "post2",
+            "Test post 2",
+            optionIds0,
+            imageUrls0
+        );
+
+        vm.expectRevert(Turks.Turks__DoesNotExist.selector);
+        turks.getAllPosts(distributor2);
+    }
+
+    function testFailGetParticularPostNonExistent() public {
+        string[] memory optionIds0 = new string[](3);
+        string[] memory imageUrls0 = new string[](3);
+
+        vm.prank(distributor1);
+        turks.initDistributor{value: 10 ether}(
+            true,
+            10 ether,
+            1,
+            "post2",
+            "Test post 2",
+            optionIds0,
+            imageUrls0
+        );
+
+        vm.expectRevert(Turks.Turks__PostDNE.selector);
+        turks.getParticularPost(distributor1, "nonexistentpostcncpaihf-qp");
+    }
+
+    function testFailGetAllOptionsNonExistentPost() public {
+        string[] memory optionIds0 = new string[](3);
+        string[] memory imageUrls0 = new string[](3);
+
+        vm.prank(distributor1);
+        turks.initDistributor{value: 10 ether}(
+            true,
+            10 ether,
+            1,
+            "post2",
+            "Test post 2",
+            optionIds0,
+            imageUrls0
+        );
+
+        vm.expectRevert(Turks.Turks__PostDNE.selector);
+        turks.getAllOptions("nonexistentpost");
+    }
+
+    function testFailGetTotalVotesOnPostNonExistent() public {
+        string[] memory optionIds0 = new string[](3);
+        string[] memory imageUrls0 = new string[](3);
+
+        vm.prank(distributor1);
+        turks.initDistributor{value: 10 ether}(
+            true,
+            10 ether,
+            1,
+            "post2",
+            "Test post 2",
+            optionIds0,
+            imageUrls0
+        );
+
+        vm.expectRevert(Turks.Turks__PostDNE.selector);
+        turks.getTotalVotesOnPost("nonexistentpost");
+    }
+
+    function testFailInitWorkerTwice() public {
+        string[] memory optionIds0 = new string[](3);
+        string[] memory imageUrls0 = new string[](3);
+
+        vm.prank(distributor1);
+        turks.initDistributor{value: 10 ether}(
+            true,
+            10 ether,
+            1,
+            "post2",
+            "Test post 2",
+            optionIds0,
+            imageUrls0
+        );
+
+        vm.prank(worker1);
+        turks.initWorker();
+
+        vm.expectRevert(Turks.Turks__WorkersExists.selector);
+        vm.prank(worker1);
+        turks.initWorker();
+    }
+
+    function testFailUpdateRewardsNonExistentWorker() public {
+        address[] memory workers = new address[](1);
+        workers[0] = worker1; // worker1 is not initialized
+
+        vm.expectRevert(Turks.Turks__WorkerDNE.selector);
+        turks.updateRewards(workers, 1 ether);
+    }
+
+    function testFailUpdateVotingMappingMismatchedArrays() public {
+        address[] memory workers = new address[](2);
+        string[] memory postIds = new string[](1);
+        string[] memory optionIds = new string[](2);
+
+        vm.expectRevert(Turks.Turks__BadPayload.selector);
+        turks.updateVotingMapping(workers, postIds, optionIds);
+    }
+
+    function testFailWithdrawETHUnauthorized() public {
+        testInitDistributor();
+
+        vm.prank(worker1);
+        vm.expectRevert(Turks.Turks__UnAuthorisedAccess.selector);
+        turks.withdrawETH(1 ether);
+    }
+
+    function testGetFrequency() public {
+        testInitDistributor();
+
+        vm.prank(distributor1);
+        uint256 frequency = turks.getFrequency(distributor1);
+        assertEq(frequency, 1);
+    }
+
+    function testFailGetFrequencyUnauthorized() public {
+        string[] memory optionIds0 = new string[](3);
+        string[] memory imageUrls0 = new string[](3);
+
+        vm.prank(distributor1);
+        turks.initDistributor{value: 10 ether}(
+            true,
+            10 ether,
+            1,
+            "post2",
+            "Test post 2",
+            optionIds0,
+            imageUrls0
+        );
+
+        vm.prank(worker1);
+        vm.expectRevert(Turks.Turks__UnAuthorisedAccess.selector);
+        turks.getFrequency(distributor1);
+    }
+
+    function testFailGetFrequencyNonExistentDistributor() public {
+        string[] memory optionIds0 = new string[](3);
+        string[] memory imageUrls0 = new string[](3);
+
+        vm.prank(distributor1);
+        turks.initDistributor{value: 10 ether}(
+            true,
+            10 ether,
+            1,
+            "post2",
+            "Test post 2",
+            optionIds0,
+            imageUrls0
+        );
+
+        // Unauthorized
+        vm.expectRevert(Turks.Turks__UnAuthorisedAccess.selector);
+        vm.prank(worker1);
+        turks.getFrequency(distributor1);
+
+        // Non Existent
+        vm.expectRevert(Turks.Turks__DoesNotExist.selector);
+        vm.prank(distributor2);
+        turks.getFrequency(distributor2);
     }
 }
