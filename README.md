@@ -78,9 +78,7 @@ Test Summary:
   - [Usage](#usage)
     - [Build](#build)
     - [Test](#test)
-    - [Format](#format)
     - [Gas Snapshots](#gas-snapshots)
-    - [Anvil](#anvil)
     - [Help](#help)
 
 ---
@@ -175,23 +173,62 @@ $ forge build
 $ forge test
 ```
 
-### Format
-
-```shell
-$ forge fmt
-```
-
 ### Gas Snapshots
 
 ```shell
 $ forge snapshot
 ```
 
-### Anvil
+<details>
+<summary>
+Gas Snapshot
+</summary>
 
-```shell
-$ anvil
-```
+| methods                                                     | Gas            |
+| ----------------------------------------------------------- | -------------- |
+| TurksTest:testAddPost()                                     | (gas: 1963194) |
+| TurksTest:testComplexVotingScenario()                       | (gas: 1286375) |
+| TurksTest:testDepositETH()                                  | (gas: 1050608) |
+| TurksTest:testFailGetAllOptionsNonExistentPost()            | (gas: 370488)  |
+| TurksTest:testFailGetAllPostsNonExistentDistributor()       | (gas: 370555)  |
+| TurksTest:testFailGetFrequencyNonExistentDistributor()      | (gas: 370512)  |
+| TurksTest:testFailGetFrequencyUnauthorized()                | (gas: 370511)  |
+| TurksTest:testFailGetParticularPostNonExistent()            | (gas: 370532)  |
+| TurksTest:testFailGetTotalVotesOnPostNonExistent()          | (gas: 370490)  |
+| TurksTest:testFailInitDistributorAlreadyExists()            | (gas: 370510)  |
+| TurksTest:testFailInitDistributorInsufficientBalance()      | (gas: 30706)   |
+| TurksTest:testFailInitDistributorNotListed()                | (gas: 370554)  |
+| TurksTest:testFailInitWorkerTwice()                         | (gas: 370489)  |
+| TurksTest:testFailUpdateDescriptionNonExistentPost()        | (gas: 370534)  |
+| TurksTest:testFailUpdateRewardsNonExistentWorker()          | (gas: 15549)   |
+| TurksTest:testFailUpdateVotesNonExistentOption()            | (gas: 370532)  |
+| TurksTest:testFailUpdateVotingMappingMismatchedArrays()     | (gas: 19735)   |
+| TurksTest:testFailWithdrawETHInsufficientBalance()          | (gas: 1041798) |
+| TurksTest:testFailWithdrawETHUnauthorized()                 | (gas: 1045796) |
+| TurksTest:testFailWithdrawRewardsNoRewards()                | (gas: 38328)   |
+| TurksTest:testGetAllOptions()                               | (gas: 1078301) |
+| TurksTest:testGetAllPosts()                                 | (gas: 2003008) |
+| TurksTest:testGetFrequency()                                | (gas: 1042531) |
+| TurksTest:testGetParticularPost()                           | (gas: 1058826) |
+| TurksTest:testGetTotalVotesOnPost()                         | (gas: 1175239) |
+| TurksTest:testInitDistributor()                             | (gas: 1039034) |
+| TurksTest:testInitWorker()                                  | (gas: 39011)   |
+| TurksTest:testMultipleDistributors()                        | (gas: 2109411) |
+| TurksTest:testMultipleDistributorsCannotHaveSameOptionIds() | (gas: 1285853) |
+| TurksTest:testMultipleDistributorsCannotHaveSamePostId()    | (gas: 1061297) |
+| TurksTest:testNonDistributorCannotCreatePost()              | (gas: 26240)   |
+| TurksTest:testPostLifecycle()                               | (gas: 2085373) |
+| TurksTest:testRewardDistributionAndWithdrawal()             | (gas: 1143791) |
+| TurksTest:testUnauthorizedAccess()                          | (gas: 2146021) |
+| TurksTest:testUpdateBudget()                                | (gas: 1052596) |
+| TurksTest:testUpdateDescription()                           | (gas: 1063929) |
+| TurksTest:testUpdateRewards()                               | (gas: 119123)  |
+| TurksTest:testUpdateVotes()                                 | (gas: 1155551) |
+| TurksTest:testUpdateVotingMapping()                         | (gas: 77028)   |
+| TurksTest:testWithdrawETH()                                 | (gas: 1056867) |
+| TurksTest:testWithdrawRewards()                             | (gas: 58978)   |
+
+</details>
 
 ### Help
 
