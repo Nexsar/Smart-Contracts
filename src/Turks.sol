@@ -97,6 +97,7 @@ contract Turks {
 
     //Mappings
     address public owner;
+    uint256 public COST_PER_POST = 0.001 ether;
     mapping(address => Distributor) private s_Distributors; // distributor add => distributor struct
     mapping(address => uint256) private s_DistributorBudget; // distributor add => distributor budget
 
@@ -246,57 +247,12 @@ contract Turks {
                 optionExist[arrayOptionIds[i][j]] = true;
                 s_Options[arrayOptionIds[i][j]] = option;
             }
-            postExist[postIds[i]] = true;
             s_Posts[postIds[i]] = post;
+            postExist[postIds[i]] = true;
+            s_DistributorBudget[msg.sender] -= COST_PER_POST;
             emit PostAdded(distributorAddress, post.id);
         }
     }
-
-    // function AddPost(
-    //     string memory postId,
-    //     string memory description,
-    //     string[] memory optionIds,
-    //     string[] memory imageUrls,
-    //     address distributorAddress
-    // ) public Listed(msg.sender) Authorized(msg.sender) {
-    //     if (!distributorExist[msg.sender]) {
-    //         revert Turks__DoesNotExist();
-    //     }
-
-    //     if (distributorAddress != msg.sender) {
-    //         revert Turks__UnAuthorisedAccess();
-    //     }
-
-    //     if (postExist[postId]) {
-    //         revert Turks__PostExist();
-    //     }
-
-    //     Distributor storage distributor = s_Distributors[distributorAddress];
-    //     //init Post
-    //     Post storage post = d_Posts[msg.sender][postId];
-    //     post.id = postId;
-    //     post.description = description;
-    //     post.affiliated_distributor = msg.sender;
-    //     distributor.postIds.push(postId);
-
-    //     for (uint j = 0; j < 3; j++) {
-    //         if (optionExist[optionIds[j]]) {
-    //             revert Turks__OptionExists();
-    //         }
-
-    //         Option storage option = p_Options[postId][optionIds[j]];
-    //         post.optionIds.push(optionIds[j]);
-    //         option.id = optionIds[j];
-    //         option.vote = 0;
-    //         option.imageUrl = imageUrls[j];
-    //         option.affiliated_post = postId;
-    //         optionExist[optionIds[j]] = true;
-    //         s_Options[optionIds[j]] = option;
-    //     }
-    //     postExist[postId] = true;
-    //     s_Posts[postId] = post;
-    //     emit PostAdded(distributorAddress, post.id);
-    // }
 
     ///////////////////////////////////////////////Updation/////////////////////////////////////////////////////////////
 
